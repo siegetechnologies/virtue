@@ -1,0 +1,37 @@
+---
+- name: Install python3 if needed
+  become: true
+  apt:
+    name: python3
+
+- name: Transfer userspace components of maven (maven_us.py)
+  copy:
+    src: "{{ playbook_dir }}/../../linux/userspace/maven_us.py"
+    dest: "/home/ubuntu/"
+    mode: "+x"
+#todo merge these into one thing?
+- name: Transfer userspace components of maven (maven_netrule.py)
+  copy:
+    src: "{{ playbook_dir }}/../../linux/userspace/maven_netrule.py"
+    dest: "/home/ubuntu/"
+    mode: "+x"
+
+- name: Install userspace components of maven
+  shell: 'install maven_us.py /usr/local/bin/ && install maven_netrule.py /usr/local/bin/'
+  args:
+    chdir: '/home/ubuntu/'
+  become: true
+  become_method: sudo
+  become_user: root
+
+
+- name: Cleanup maven userspace (maven_us.py)
+  file:
+    state: absent
+    path: "/home/ubuntu/maven_us.py"
+
+
+- name: Cleanup maven userspace (maven_netrule.py)
+  file:
+    state: absent
+    path: "/home/ubuntu/maven_netrule.py"

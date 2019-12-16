@@ -1,0 +1,38 @@
+---
+- name: Install kernel headers
+  shell: "apt-get install linux-headers-$(uname -r)"
+  become: true
+  become_method: sudo
+  become_user: root
+  register: headers_output
+  changed_when: "'0 upgraded, 0 newly installed' not in headers_output.stdout"
+
+
+
+- name: Transfer sources of Modules
+  copy:
+    src: "{{ playbook_dir }}/../../linux/modules/"
+    dest: "/home/ubuntu/modules/"
+
+- name: Compile Modules
+  command: 'make modules -j8'
+  args:
+    chdir: '/home/ubuntu/modules/'
+  register: modules_compile_output
+  failed_when: modules_compile_output.rc != 0
+
+- debug: msg={{modules_compile_output}}
+
+- name: Install Modules
+  command: 'make modules_install -j8'
+  args:
+    chdir: '/home/ubuntu/modules/'
+  become: true
+  become_method: sudo
+  become_user: root
+  register: modules_install_output
+  failed_when: modules_install_output.rc != 0
+
+- debug: msg={{modules_install_output}}
+
+

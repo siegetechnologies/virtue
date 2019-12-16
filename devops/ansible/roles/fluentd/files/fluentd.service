@@ -1,0 +1,19 @@
+[Unit]
+Description=Fluentd based data collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+LimitNOFILE=65536
+Environment=FLUENT_SOCKET=/var/run/fluentd.sock
+PIDFile=/var/run/fluentd.pid
+Type=forking
+ExecStart=/usr/local/bin/fluentd --log /var/log/fluentd.log --daemon /var/run/fluentd.pid
+ExecStop=/bin/kill -TERM ${MAINPID}
+ExecReload=/bin/kill -HUP ${MAINPID}
+Restart=always
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
+

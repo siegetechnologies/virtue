@@ -1,0 +1,208 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  CloudFormation template to provision the VPC, subnets, routing tables,
+  security groups, and FSR in support of the Justice Far-side Testbed.
+
+Parameters:
+  FarSideKeyPair:
+    Type: String
+    Default: "virtue-te"
+  FarSideDeployAZ:
+    Type: String
+    AllowedValues:
+      - "us-east-1a"
+      - "us-east-1b"
+      - "us-east-1c"
+      - "us-east-1d"
+      - "us-east-1e"
+      - "us-east-1f"
+    Default: "us-east-1a"
+  FarSideFSRAMI:
+    Type: String
+    Default: "ami-9887c6e7"
+  FarSideEIP:
+    Type: String
+    Default: "eipalloc-02cd3138960db2ab3"
+  FarSideFSRInstanceType:
+    Type: String
+    Default: "c5.large"
+
+Resources:
+
+# Creating the VPC and two subnets
+  FarSideVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "{{ workspace_cidr }}"
+      EnableDnsSupport: true
+      EnableDnsHostnames: false
+      InstanceTenancy: "default"
+      Tags:
+        - Key: Name
+          Value: "VirtueWorkspace_VPC"
+  FarSidePublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref FarSideDeployAZ
+      VpcId: !Ref FarSideVPC
+      CidrBlock: "{{ workspace_sub1_cidr }}"
+      Tags:
+        - Key: Name
+          Value: "VirtueWorkspace Subnet 1"
+  FarSidePublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref FarSideVPC
+      AvailabilityZone: "us-east-1b" # has to be different for ad
+      CidrBlock: "{{ workspace_sub2_cidr }}"
+      Tags:
+        - Key: Name
+          Value: "VirtueWorkspace Subnet 2"
+
+# Creating Internet gateway and associating with VPC
+  FarSideIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: "justice-finals-igw"
+  FarSideIGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref FarSideIGW
+      VpcId: !Ref FarSideVPC
+
+# Creating the routing tables
+  PublicSubnetRoutingTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: FarSideVPC
+    Properties:
+      VpcId: !Ref FarSideVPC
+      Tags:
+        - Key: Name
+          Value: "VirtueWorkspace_rt"
+  IgwRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+    - FarSideIGW
+    - PublicSubnetRoutingTable
+    Properties:
+      RouteTableId: !Ref PublicSubnetRoutingTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref FarSideIGW
+  PublicSubnetTestbedRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+    - FSRPublicENI
+    - PublicSubnetRoutingTable
+    Properties:
+      RouteTableId: !Ref PublicSubnetRoutingTable
+      DestinationCidrBlock: "192.168.4.0/24"
+      NetworkInterfaceId: !Ref FSRPublicENI
+  PublicSubnetTestbedRoute2:
+    Type: AWS::EC2::Route
+    DependsOn:
+    - FSRPublicENI
+    - PublicSubnetRoutingTable
+    Properties:
+      RouteTableId: !Ref PublicSubnetRoutingTable
+      DestinationCidrBlock: "10.200.0.0/30"
+      NetworkInterfaceId: !Ref FSRPublicENI
+  FarSidePublicSubnetRouteTableAttachment:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FarSidePublicSubnet
+      RouteTableId: !Ref PublicSubnetRoutingTable
+  FarSidePublicSubnetRouteTableAttachment:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref FarSidePublicSubnet2
+      RouteTableId: !Ref PublicSubnetRoutingTable
+
+# Creating far-side router instance
+  FSRPublicENI:
+    Type: AWS::EC2::NetworkInterface
+    DependsOn: FSRPublicENISecGrp
+    Properties:
+      Description: "FSR Public Subnet Interface"
+      PrivateIpAddress: "10.2.1.4"
+      SourceDestCheck: False
+      SubnetId: !Ref FarSidePublicSubnet
+      GroupSet:
+      - !GetAtt FSRPublicENISecGrp.GroupId
+      Tags:
+        - Key: Name
+          Value: "justice-finals-public-fsr-eni"
+  FSRPublicENISecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "justice-finals-public-eni-sg"
+      GroupDescription: "FSR public eni security group"
+      VpcId: !Ref FarSideVPC
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "192.168.4.0/24"
+        - IpProtocol: "-1"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "10.2.0.0/16"
+        - IpProtocol: "-1"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "10.200.0.0/30"
+        - IpProtocol: "udp"
+          FromPort: "1194"
+          ToPort: "1194"
+          CidrIp: "128.244.8.96/28"
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "128.244.8.0/24"
+        - IpProtocol: "icmp"
+          FromPort: "-1"
+          ToPort: "-1"
+          CidrIp: "128.244.8.0/24"
+      Tags:
+        - Key: Name
+          Value: "justice-finals-fsr-public-eni-sg"
+  FSRPublicENIEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    DependsOn: FSRPublicENI
+    Properties:
+      AllocationId: !Ref FarSideEIP
+      NetworkInterfaceId: !Ref FSRPublicENI
+  FSREC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref FarSideFSRAMI
+      InstanceType: !Ref FarSideFSRInstanceType
+      AvailabilityZone: !Ref FarSideDeployAZ
+      KeyName: !Ref FarSideKeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref FSRPublicENI
+          DeviceIndex: "0"
+      UserData: {{ userdata }}
+      Tags:
+        - Key: Name
+          Value: "justice-finals-fsr"
+
+Outputs:
+  JusticeFinalsVPCId:
+    Description: "VPC Established for finals testing"
+    Value: !Ref FarSideVPC
+    Export:
+      Name: !Sub "${AWS::StackName}--VPCID"
+  JusticeFinalsKeyPair:
+    Description: "SSH Key Pair Name"
+    Value: !Ref FarSideKeyPair
+    Export:
+      Name: !Sub "${AWS::StackName}--KEYPAIR"
+  JusticeFinalsDeployAZ:
+    Description: "Deployment AZ for Final"
+    Value: !Ref FarSideDeployAZ
+    Export:
+      Name: !Sub "${AWS::StackName}--DEPLOYAZ"

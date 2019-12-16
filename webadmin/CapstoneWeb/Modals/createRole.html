@@ -1,0 +1,198 @@
+		<!doctype html>
+		<html lang="en">
+		  <head>
+			  
+			   <!-- jQuery library -->
+		 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+			<!-- Required meta tags -->
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		
+			  
+			  
+			  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+			  
+			<!-- Bootstrap CSS -->
+			<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+			
+			  
+			  	  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+			<title>Virtue Admin</title>
+			  
+		  </head>
+
+			<script src="../js/forms.js"></script>
+			<script>
+				
+			</script>
+<body>
+	<div class="modal-header">
+		<h5 class="modal-title" id="ModalLongTitle">Create Role</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+			</button>
+		</div>
+		</div>
+		<div class="modal-body">
+			<form class="">
+								
+				<div id="error" class="card bg-danger text-white text-center mb-3 d-none">
+					<div id="errorMessage" class="card-body">Error: Role not created</div>
+				</div>
+				
+				
+				 <div class="form-group row">
+    				<label for="inputRole" class="col-sm-4 col-form-label text-right">Role:<span class="text-warning">*</span></label>
+    			<div class="col-sm-8">
+     				<input type="text" class="form-control ml-0" id="inputRole" placeholder="">
+    			</div>
+				</div>
+			<!--	<div class="form-group row">
+    				<label for="inputRepo" class="col-sm-4 col-form-label text-right">Repo:<span class="text-warning">*</span></label>
+    			<div class="col-sm-8">
+     				<input type="text" class="form-control ml-0" id="inputRepo" placeholder="">
+    			</div>
+				</div>-->
+				
+				<div class="form-group row">					
+					
+    				<label for="inputRAM" class="col-sm-4 col-form-label text-right">RAM:</label>
+    			<div class="col-sm-8 input-group">
+     				<input type="number" class="form-control ml-0" id="inputRAM" placeholder="1">
+					<div class="input-group-append">
+							<span id="ramType" class="input-group-text" >Gi</span>
+						</div>
+    			</div>
+				</div>
+				<div class="form-group row">
+    				<label for="inputCPU" class="col-sm-4 col-form-label text-right">CPU:</label>
+    			<div class="col-sm-8">
+     				<input type="number" class="form-control ml-0" id="inputCPU" placeholder="1">
+    			</div>
+				</div>
+			
+				 <div class="form-group row">
+    				<label for="inputMounts" class="col-sm-4 col-form-label text-right">Mounts:</label>
+    			<div class="col-sm-8">
+     				<input type="text" class="form-control ml-0" id="inputMounts" placeholder="">
+    			</div>
+				</div>
+				<div class="form-group mt-2 row">
+    				<label for="inputVirtlet" class="col-sm-4 col-form-label text-right">Virtlet:</label>
+    			<div class="col-sm-8">
+     				<select id="inputVirtlet" class="custom-select" aria-label="Text input with dropdown button">
+								<option value="0">Off</option>
+								<option value="1" selected>On</option>
+					</select>
+    			</div>
+				</div>
+				<div class="form-group row">
+    				<label for="inputSensors" class="col-sm-4 col-form-label text-right">Sensors:</label>
+    			<div class="col-sm-8">
+     				<input type="text" class="form-control ml-0" id="inputSensors" placeholder="">
+    			</div>
+				</div>
+				<div class="form-group mt-2 row">
+    				<label for="inputFilter" class="col-sm-4 col-form-label text-right">Filtering:</label>
+    			<div class="col-sm-8">
+     				<select id="inputFilter" class="custom-select" aria-label="Text input with dropdown button">
+								<option value="0" selected>Off</option>
+								<option value="1">On</option>
+					</select>
+    			</div>
+				</div>
+				 <div class="form-group mt-2 row">
+    				<label for="inputType" class="col-sm-4 col-form-label text-right">Type:</label>
+				<div class="col-sm-8 input-group">
+     				<select id="inputType" class="custom-select" aria-label="Text input with dropdown button" disabled>
+								<option value="0" selected>Linux</option>
+								<option value="1">Windows</option>
+					</select>
+					<div class="input-group-append">
+							<span class="input-group-text" ><i id="typeIcon" class="fab fa-linux"></i></span>
+						</div>
+    			</div></div>
+				<div class="mt-2 mb-0 Trigger" data-toggle="collapse" data-target="#usersWindow" aria-expanded="true" aria-controls="usersWindow" style="cursor: pointer">Assign Users <i class="fas fa-caret-down"></i></div>
+				<hr class="mt-1"/>
+				<div id="usersWindow" class="collapse">
+				<div  class="form-inline justify-content-center ">
+				<div class="col-sm-5">
+					<label for="leftRole"></label>
+					<div class="card">
+						<div class="card-header">Assigned Users:</div>
+						<div class="list pre-scrollable" style="min-height: 330px">
+							
+						<div id="ulhs" class="list-group list-group-flush text-center" style="cursor: pointer">
+							
+							
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-sm-1 p-0 justify-content-center">
+					<button id="assignUsers" type="button" class="btn"><i class="fa fa-arrow-left"></i></button>
+					<button id="unassignUsers" type="button" class="btn mt-1"><i class="fa fa-arrow-right"></i></button>
+				</div>
+				<div  class="col-sm-5">
+					<label for="leftRole"></label>
+					<div class="card">
+						<div class="card-header">Avalible Users:</div>
+						<div class="list pre-scrollable" style="min-height: 330px"  >
+						<div id="urhs" class="list-group list-group-flush text-center" style="cursor: pointer" >
+							
+							</div>
+						</div>
+					</div>
+				</div>
+					</div>
+					</div>
+				
+				<div class="mt-2 mb-0 Trigger" data-toggle="collapse" data-target="#appsWindow" aria-expanded="true" aria-controls="appssWindow" style="cursor: pointer">Assign Applications <i class="fas fa-caret-down"></i></div>
+				<hr class="mt-1"/>
+				<div id="appsWindow" class="collapse">
+				<div  class="form-inline justify-content-center ">
+				<div class="col-sm-5">
+					<label for="leftRole"></label>
+					<div class="card">
+						<div class="card-header">Assigned Apps:</div>
+						<div class="list pre-scrollable" style="min-height: 330px">
+							
+						<div id="alhs" class="list-group list-group-flush text-center" style="cursor: pointer">
+							
+							
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-sm-1 p-0 justify-content-center">
+					<button id="assignApps" type="button" class="btn"><i class="fa fa-arrow-left"></i></button>
+					<button id="unassignApps" type="button" class="btn mt-1"><i class="fa fa-arrow-right"></i></button>
+				</div>
+				<div  class="col-sm-5">
+					<label for="leftRole"></label>
+					<div class="card">
+						<div class="card-header">Avalible Apps:</div>
+						<div class="list pre-scrollable" style="min-height: 330px"  >
+						<div id="arhs" class="list-group list-group-flush text-center" style="cursor: pointer" >
+							
+							</div>
+						</div>
+					</div>
+				</div>
+					</div>
+					</div>
+			</form>
+		</div>
+			<div class="modal-footer">
+			<div class="text-right">
+				 <button type="button" onClick="createRole()" class="btn btn-primary">Submit</button>
+				 <button type="button" id="cancel" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+       
+      		</div>
+		</div>
+
+	
+
+</body>
+</html>

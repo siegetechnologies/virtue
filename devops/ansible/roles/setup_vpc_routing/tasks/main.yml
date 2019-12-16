@@ -1,0 +1,290 @@
+---
+- name: Lookup CC VPC info
+  ec2_vpc_net_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": VirtueCC_VPC
+  register: virtue_cc_vpc
+
+- name: Lookup Win Virtue vpc
+  ec2_vpc_net_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": Win_Virtue_VPC
+  register: win_virtue_vpc
+
+- name: Lookup Win Virtue subnet (may not be in win_virtue_vpc, confusingly)
+  ec2_vpc_subnet_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": Win_Virtue Private
+  register: wv_private_subnet
+
+- name: Lookup Cluster VPC info
+  ec2_vpc_net_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": "{{ virtue_cluster_name }}"
+  register: virtue_cluster_vpc
+
+- name: Lookup Workspace VPC info
+  ec2_vpc_net_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": VirtueWorkspace_VPC
+  register: virtue_workspace_vpc
+
+- name: Registering VPC ids
+  set_fact:
+    cc_vpc_id: "{{ virtue_cc_vpc.vpcs.0.id }}"
+    cc_vpc: "{{ virtue_cc_vpc.vpcs.0 }}"
+    cluster_vpc_id: "{{ virtue_cluster_vpc.vpcs.0.id }}"
+    cluster_vpc: "{{ virtue_cluster_vpc.vpcs.0 }}"
+    workspace_vpc_id: "{{ virtue_workspace_vpc.vpcs.0.id }}"
+    workspace_vpc: "{{ virtue_workspace_vpc.vpcs.0 }}"
+    win_vpc_id: "{{ wv_private_subnet.subnets.0.vpc_id }}"
+    win_vpc: "{{ win_virtue_vpc.vpcs.0 }}"
+  ignore_errors: yes
+
+- debug: msg={{ cc_vpc }}
+# Register and accept peering connections between all of
+# the virtue VPCs
+- name: Setup peering connection between CC <--> Cluster
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ cc_vpc_id }}"
+    peer_vpc_id: "{{ cluster_vpc_id }}"
+    state: present
+    tags:
+      Name: 'cc-to-cluster'
+  register: cc_to_cluster_pcx
+  until: cc_to_cluster_pcx.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+  
+- name: Setup peering connection between CC <--> Workspace
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ cc_vpc_id }}"
+    peer_vpc_id: "{{ workspace_vpc_id }}"
+    state: present
+    tags:
+      Name: 'cc-to-workspace'
+  register: cc_to_workspace_pcx
+  until: cc_to_workspace_pcx.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+
+- name: Setup peering connection between CC <--> Windows
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ cc_vpc_id }}"
+    peer_vpc_id: "{{ win_vpc_id }}"
+    state: present
+    tags:
+      Name: 'cc-to-win'
+  register: cc_to_win_pcx
+  until: cc_to_win_pcx.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+  
+- name: Setup peering connection between Workspace <--> Cluster
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ workspace_vpc_id }}"
+    peer_vpc_id: "{{ cluster_vpc_id }}"
+    state: present
+    tags:
+      Name: 'workspace-to-cluster'
+  register: workspace_to_cluster_pcx
+  until: workspace_to_cluster_pcx.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+
+- name: Setup peering connection between Workspace <--> Windows
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ workspace_vpc_id }}"
+    peer_vpc_id: "{{ win_vpc.vpc_id }}"
+    state: present
+    tags:
+      Name: 'workspace-to-win'
+  register: workspace_to_win_pcx
+  until: workspace_to_win_pcx.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+  
+- name: Accept cc-to-cluster peering request
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    peering_id: "{{ cc_to_cluster_pcx.peering_id }}"
+    state: accept
+    tags:
+      Name: 'cc-to-cluster'
+  register: "cc_to_cluster_peer"
+
+- name: Accept cc-to-workspace peering request
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    peering_id: "{{ cc_to_workspace_pcx.peering_id }}"
+    state: accept
+    tags:
+      Name: 'cc-to-workspace'
+  register: "cc_to_workspace_peer"
+
+- name: Accept cc-to-win peering request
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    peering_id: "{{ cc_to_win_pcx.peering_id }}"
+    state: accept
+    tags:
+      Name: 'cc-to-win'
+  register: "cc_to_win_peer"
+  ignore_errors: yes
+
+- name: Accept workspace-to-cluster peering request
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    peering_id: "{{ workspace_to_cluster_pcx.peering_id }}"
+    state: accept
+    tags:
+      Name: 'workspace-to-cluster'
+  register: "workspace_to_cluster_peer"
+
+- name: Accept workspace-to-win peering request
+  ec2_vpc_peer:
+    region: "{{ virtue_aws_region }}"
+    peering_id: "{{ workspace_to_win_pcx.peering_id }}"
+    state: accept
+    tags:
+      Name: 'workspace-to-win'
+  register: "workspace_to_win_peer"
+
+- name: Getting CC VPC Route Table info
+  ec2_vpc_route_table_facts:
+    filters:
+      vpc-id: "{{ cc_vpc_id }}"
+      "tag:Name": VirtueCC_rt
+    region: "{{ virtue_aws_region }}"
+  register: virtue_cc_rt
+
+- name: Getting Workspace Route Table info
+  ec2_vpc_route_table_facts:
+    filters:
+      vpc-id: "{{ workspace_vpc_id }}"
+      "tag:Name": VirtueWorkspace_rt
+    region: "{{ virtue_aws_region }}"
+  register: virtue_workspace_rt  
+
+- name: Getting Cluster Route Table info
+  ec2_vpc_route_table_facts:
+    filters:
+      vpc-id: "{{ cluster_vpc_id }}"
+      "tag:KubernetesCluster": "{{ cluster_vpc.tags.Name }}"
+    region: "{{ virtue_aws_region }}"
+  register: virtue_cluster_rt
+
+- name: Getting Windows Virtue Route Table info
+  ec2_vpc_route_table_facts:
+    filters:
+      vpc-id: "{{ win_vpc_id }}"
+      "tag:Name": Win_Virtue_rt_private
+    region: "{{ virtue_aws_region }}"
+  register: win_virtue_rt
+
+- name: Ensure VPC routes in CC table
+  ec2_vpc_route_table:
+    vpc_id: "{{ cc_vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    route_table_id: "{{ virtue_cc_rt.route_tables.0.id }}"
+    lookup: id
+    purge_subnets: no
+    purge_routes: no
+    routes:
+      - dest: "{{ cluster_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_cluster_peer.peering_id}}"
+      - dest: "{{ workspace_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_workspace_peer.peering_id }}"
+      - dest: "{{ win_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_win_peer.peering_id }}"
+
+- name: Ensure VPC routes in Workspace table
+  ec2_vpc_route_table:
+    vpc_id: "{{ workspace_vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    route_table_id: "{{ virtue_workspace_rt.route_tables.0.id }}"
+    lookup: id
+    purge_subnets: no
+    purge_routes: no
+    routes:
+      - dest: "{{ cluster_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ workspace_to_cluster_peer.peering_id}}"
+      - dest: "{{ cc_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_workspace_peer.peering_id }}"
+      - dest: "{{ win_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ workspace_to_win_peer.peering_id }}"
+
+- name: Ensure VPC routes in Cluster Tables
+  ec2_vpc_route_table:
+    vpc_id: "{{ cluster_vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    route_table_id: "{{ item.id }}"
+    lookup: id
+    purge_subnets: no
+    purge_routes: no
+    routes:
+      - dest: "{{ cc_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_cluster_peer.peering_id}}"
+      - dest: "{{ workspace_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ workspace_to_cluster_peer.peering_id }}"
+
+  with_list: "{{ virtue_cluster_rt.route_tables }}"
+    
+- name: Ensure VPC routes in Windows Virtue table
+  ec2_vpc_route_table:
+    vpc_id: "{{ win_vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    route_table_id: "{{ win_virtue_rt.route_tables.0.id }}"
+    lookup: id
+    purge_subnets: no
+    purge_routes: no
+    routes:
+      - dest: "{{ cc_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_win_peer.peering_id }}"
+  when: win_vpc_id == workspace_vpc_id
+
+- name: Ensure VPC routes in Windows Virtue table
+  ec2_vpc_route_table:
+    vpc_id: "{{ win_vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    route_table_id: "{{ win_virtue_rt.route_tables.0.id }}"
+    lookup: id
+    purge_subnets: no
+    purge_routes: no
+    routes:
+      - dest: "{{ cc_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ cc_to_win_peer.peering_id }}"
+      - dest: "{{ workspace_vpc.cidr_block }}"
+        vpc_peering_connection_id: "{{ workspace_to_win_peer.peering_id }}"
+  when: win_vpc_id != workspace_vpc_id
+
+- name: Fix cluster security group rules
+  ec2_group:
+    name: "nodes.{{virtue_cluster_name}}"
+    purge_rules: no
+    description: Security group for nodes
+    rules:
+    - proto: tcp
+      from_port: 30000
+      to_port: 65535
+      cidr_ip: "{{ workspace_cidr }}"
+    - proto: tcp
+      from_port: 5443
+      to_port: 5443
+      cidr_ip: "{{ cc_cidr }}"
+  ignore_errors: yes

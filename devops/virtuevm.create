@@ -1,0 +1,7 @@
+hostname virtuevm
+uninstall cloud-init
+update
+install docker.io
+run-command bash -c "groupadd docker || true"
+run-command useradd -m virtuevm -G docker
+#run-command usermod -aG docker virtuevm

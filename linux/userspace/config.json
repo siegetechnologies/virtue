@@ -1,0 +1,17 @@
+{
+	"virtues": [
+		{
+			"name": "thunderbird",
+			"uuid":"df2f34ea-f88c-4989-adcb-79227d7c7c5b",
+			"image":"thunderbird",
+			"port":5901
+		},
+		{
+			"name": "firefox",
+			"uuid":"238c7828-9174-48cc-be3f-45aac33630de",
+			"image":"firefox",
+			"port":5902
+		}
+	],
+	"first_docker_port": 5911
+}

@@ -1,0 +1,15 @@
+Home of the linux kernel modules that make up the MAVEN microvisor
+There are 4 directories here
+
+# core/
+Core functionality. Most of the logic ends up here
+but should export functions which can be used by modules in impl or tests
+
+# include/
+Function prototypes for exported functions in core, provided for convenience
+
+# tests/
+Any testing code. Test modules should use the functions in linux/bug.h to generate
+warning if any core functionality seems broken. They should have no side affects,
+and it is perfectly acceptable for them to fail to load.
+

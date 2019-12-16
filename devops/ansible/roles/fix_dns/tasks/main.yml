@@ -1,0 +1,9 @@
+---
+
+- name: Apply kubeDNS fix
+  command: ~/fix_dns.sh
+  environment:
+    AWS_CONFIG_FILE: /home/ubuntu/.aws/config
+    AWS_SHARED_CREDENTIALS_FILE: /home/ubuntu/.aws/credentials
+  register: fixdns_output
+  failed_when: fixdns_output.rc != 0

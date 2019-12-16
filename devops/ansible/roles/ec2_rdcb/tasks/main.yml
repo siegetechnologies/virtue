@@ -1,0 +1,58 @@
+
+---
+# Provisions the command and control server for virtue
+
+- name: Setup RDCB firewall settings
+  ec2_group:
+    name: "RDCB with WinRM"
+    aws_access_key: "{{ aws_access_key_id }}"
+    aws_secret_key: "{{ aws_secret_access_key }}"
+    description: "Inbound RDP and WinRM"
+    region: "{{ ec2_config.region }}"
+    rules:
+    - proto: tcp
+      from_port: 5986
+      to_port: 5986
+      cidr_ip: 0.0.0.0/0
+    - proto: tcp
+      from_port: 3389
+      to_port: 3389
+      cidr_ip: 0.0.0.0/0
+  register: security_group
+
+- name: Create RDBC as EC2 instance
+  ec2:
+    #aws_access_key: "{{ aws_access_key_id }}"
+    #aws_secret_key: "{{ aws_secret_access_key }}"
+    region: "{{ ec2_config.region }}"
+    keypair: "{{ ec2_config.keypair_name }}"
+    instance_type: "{{ ec2_config.instance_type }}"
+    image: "{{ ec2_config.image }}"
+    group_id: "{{ security_group.group_id }}"
+    wait: yes
+    exact_count: 1
+    instance_tags:
+      Name: "{{ ec2_config.instance_name_tag }}"
+    user_data: "{{ lookup('template', '{{ role_path}}/templates/userdata') }}"
+  register: ec2
+
+- name: Wait for WinRM to come up
+  wait_for:
+    port: 5986
+    host: "{{ item.public_ip }}"
+    timeout: 600
+  with_items: "{{ ec2.tagged_instances }}"
+
+- name: Add RDCB to host group
+  add_host: 
+    groups: rdcb
+    name: "{{ item.public_dns_name }}"
+    ansible_user: Administrator
+    ansible_password: "{{ ansible_password }}"
+    ansible_connection: winrm
+    ansible_winrm_server_cert_validation: ignore
+
+  with_items: "{{ ec2.tagged_instances }}"
+
+
+

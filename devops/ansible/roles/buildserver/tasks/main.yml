@@ -1,0 +1,101 @@
+---
+# Need to install the ansible repo on Ubuntu machines as their most
+# recent version is positively ancient and doesn't support some of the
+# commands we need
+- block:
+  - name: Install ansible repository
+    apt_repository:
+      repo: 'ppa:ansible/ansible'
+      state: present
+
+  - name: Apt update
+    apt:
+      name: ansible
+      state: present
+      update_cache: yes
+  become: true
+  when: ansible_distribution == 'Ubuntu'
+
+# Need to do some specific actions as the vagrant plugin system is broken in the latest
+# Ubuntu
+- block:
+  - name: Install Vagrant and requirements
+    package: name={{ item }} state=latest
+    with_items:
+      - zlib1g-dev
+      - vagrant
+      - python-botocore
+      - python-boto3
+      - libxml2-dev
+      - libcurl4-openssl-dev
+
+  - name: Apply patch to install ansible-aws
+    replace:
+      path: /usr/lib/ruby/vendor_ruby/vagrant/bundler.rb
+      regexp: "Specification.all = nil"
+      replace: "Specification.reset"
+
+  - name: Get list of vagrant plugins for user
+    shell: vagrant plugin list
+    register: vagrantplugins
+    become: no
+
+  - name: Install vagrant-aws plugin
+    shell: vagrant plugin install vagrant-aws
+    become: no
+    when: '"vagrant-aws" not in vagrantplugins.stdout'
+
+  - name: Install aws result
+    debug: var=installawsplugin
+
+  - name: Check if we need to download the vagrant-aws dummy box
+    shell: vagrant box list
+    register: vagrant_boxes
+    become: no
+
+  - name: Install Dummy box for vagrant-aws
+    shell: vagrant box add dummy https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box
+    when: '"dummy" not in vagrant_boxes.stdout'
+    become: no
+
+  when: ansible_distribution == 'Ubuntu'
+  become: true
+  name: VAGRANT SETUP
+    
+- stat: path={{ git_repo_directory }}
+  ignore_errors: true
+  register: repo_directory
+
+#- name: Clone git repository
+#  git:
+#    repo: https://{{ git_oauth_token }}@github.com/siegetechnologies/virtue.git
+#    dest: "{{ git_repo_directory }}"
+#  when: repo_directory.stat.exists == False
+
+  # Copy AWS credentials from source to build machine.  This will make it easier to
+  # spawn test machines from the buildserver if necessary.
+- block:
+    - name: Create .aws directory
+      file: path=~/.aws state=directory
+
+    - name: Install AWS configuration
+      template:
+        src: aws_config
+        dest: ~/.aws/config
+
+    - name: Install AWS credentials
+      template:
+        src: aws_credentials
+        dest: ~/.aws/credentials
+
+    - name: Copy vagrant aws.yaml
+      copy:
+        src: "{{ playbook_dir }}/../vagrant/buildserver/aws.yml"
+        dest: ~/virtue/devops/vagrant/buildserver/aws.yml
+
+    - name: Copy Vault
+      copy:
+        src: "{{ playbook_dir }}/group_vars/all/vault"
+        dest: ~/virtue/devops/ansible/group_vars/all/vault
+
+    

@@ -1,0 +1,25 @@
+---
+- name: hack to resolve Problem with apt source lists
+  become: true
+  become_method: sudo
+  become_user: root
+  raw: 'find /var/lib/apt/lists -maxdepth 1 -type f -exec rm -v {} \;'
+
+# Check to see if python2 is installed.  If not, install it.
+# the weird update twice and sleep thing is to (attempt to) prevent a weird error that would sometimes occour at this stage
+- name: BOOTSTRAP | Install Python 2 and update
+  raw: test -e /usr/bin/python || (apt-get update; sleep 1 && apt-get update && sleep 1 && apt-get install -y python-minimal)
+  become: true
+  become_method: sudo
+  become_user: root
+  register: output
+  changed_when: output.stdout != ""
+
+- name: Install python-openssl via apt
+  apt:
+    name: python-openssl
+  become: true
+  become_method: sudo
+  become_user: root
+  register: output
+

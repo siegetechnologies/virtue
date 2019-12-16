@@ -1,0 +1,15 @@
+---
+# Sets up RDCB with windows server features
+
+- name: Add server roles
+  win_feature:
+    name:
+    - RDS-Connection-Broker
+    - RDS-Gateway
+    - RDS-Web-Access
+    state: present
+  register: win_feature
+ 
+- name: Reboot if required
+  win_reboot:
+  when: win_feature.reboot_required

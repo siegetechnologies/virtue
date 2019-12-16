@@ -1,0 +1,19 @@
+---
+- name: Install build dependencies
+  package: name={{ item }} state=latest
+  with_items:
+#    - linux-headers-{{ ansible_kernel }}
+#installed by maven_modules as well...
+    - linux-headers-4.15.0-38-generic
+    - git
+    - build-essential
+    - ruby
+    - ruby-dev
+    - python3
+    - tmux
+    - vim
+    - nano
+    - linux-image-4.15.0-38-generic
+#    - docker.io
+  become: true
+

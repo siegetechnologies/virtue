@@ -1,0 +1,33 @@
+ipstart
+ipstartptr: ipstart
+const0: 0
+const1: 1
+const4: 4
+
+i: 0
+count: 1024 //1000000
+outputptr: output
+
+ipstart:
+//set up pointers
+
+//really dumb hack here, i just changed the old pointers from data on "the heap" to point directly into the add
+//technically that is how you are supposed to do it, but whatever
+add outputptr i t1
+add t1 const1 t2
+add t2 const1 t3
+
+//add and put
+add t1: 0 t2: 0 t3: 0
+
+add i const1 i
+tg count i t1
+mult t1 const4 t1
+add t1 0 0 // skip next instruction (4 words)  if i < count
+//reset IP to -4 so it halts
+sub const0 const4 0
+
+//jump back to start of program (ipstart -4 so it gets set to ipstart)
+sub ipstartptr const4 0
+
+output: 1 1 // you need MORE MEMORY after this for it to fit the results approx 212 + count * 4

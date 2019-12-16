@@ -1,0 +1,34 @@
+ec2->Auto scaling groups
+ec2->launch config
+ec2->instances
+
+
+efs->file system
+
+s3->bucket
+workspaces->workspace
+
+route53->hosted zones
+ecs->repos delete all
+
+workspaces->directories
+
+
+
+
+ec2->load ballancer delete	BIG ONE?
+
+ec2->volumes delete all
+
+ec2->keypair delete the kube one
+
+
+vpc->vpc all but default (order may be tricky, CC first?)
+
+vpc->nat gateways? (vpcs auto delete, but may take a while)
+
+ec2->elastic ips release all (may have to skip and come back)
+
+vpc->dhcp-options set the virtue one
+
+ec2->security groups? check if there are any other than default

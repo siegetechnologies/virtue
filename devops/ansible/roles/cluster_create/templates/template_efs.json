@@ -1,0 +1,181 @@
+{
+    "kind": "List",
+    "apiVersion": "v1",
+    "metadata": {},
+    "items": [
+        {
+                "kind": "ServiceAccount",
+                "apiVersion": "v1",
+                "metadata":{
+                  "name":"efs-provisioner"
+                }
+        },
+        {
+            "kind": "ClusterRoleBinding",
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "metadata": {
+                "name": "efs-provisioner",
+                "selfLink": "/apis/rbac.authorization.k8s.io/v1/clusterrolebindings/efs-provisioner",
+                "creationTimestamp": "2018-04-20T19:36:04Z"
+            },
+            "subjects": [
+                {
+                    "kind": "ServiceAccount",
+                    "name": "default",
+                    "namespace": "default"
+                }
+            ],
+            "roleRef": {
+                "apiGroup": "rbac.authorization.k8s.io",
+                "kind": "ClusterRole",
+                "name": "system:persistent-volume-provisioner"
+            }
+        },
+        {
+            "kind": "ConfigMap",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "efs-provisioner",
+                "creationTimestamp": null
+            },
+            "data": {
+                "aws.region": "{{ virtue_aws_region }}",
+                "file.system.id": "__FILESYSTEMID",
+                "provisioner.name": "example.com/aws-efs"
+            }
+        },
+        {
+            "kind": "Deployment",
+            "apiVersion": "extensions/v1beta1",
+            "metadata": {
+                "name": "efs-provisioner",
+                "creationTimestamp": null,
+                "labels": {
+                    "app": "efs-provisioner"
+                }
+            },
+            "spec": {
+                "replicas": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "efs-provisioner"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "creationTimestamp": null,
+                        "labels": {
+                            "app": "efs-provisioner"
+                        }
+                    },
+                    "spec": {
+			"serviceAccount":"efs-provisioner",
+                        "volumes": [
+                            {
+                                "name": "pv-volume",
+                                "nfs": {
+                                    "server": "__FILESYSTEMID.efs.{{ virtue_aws_region }}.amazonaws.com",
+                                    "path": "/"
+                                }
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "name": "efs-provisioner",
+                                "image": "quay.io/external_storage/efs-provisioner:latest",
+                                "env": [
+                                    {
+                                        "name": "FILE_SYSTEM_ID",
+                                        "valueFrom": {
+                                            "configMapKeyRef": {
+                                                "name": "efs-provisioner",
+                                                "key": "file.system.id"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "name": "AWS_REGION",
+                                        "valueFrom": {
+                                            "configMapKeyRef": {
+                                                "name": "efs-provisioner",
+                                                "key": "aws.region"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "name": "PROVISIONER_NAME",
+                                        "valueFrom": {
+                                            "configMapKeyRef": {
+                                                "name": "efs-provisioner",
+                                                "key": "provisioner.name"
+                                            }
+                                        }
+                                    }
+                                ],
+                                "resources": {},
+                                "volumeMounts": [
+                                    {
+                                        "name": "pv-volume",
+                                        "mountPath": "/persistentvolumes"
+                                    }
+                                ],
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "imagePullPolicy": "Always"
+                            }
+                        ],
+                        "restartPolicy": "Always",
+                        "terminationGracePeriodSeconds": 30,
+                        "dnsPolicy": "ClusterFirst",
+                        "securityContext": {},
+                        "schedulerName": "default-scheduler"
+                    }
+                },
+                "strategy": {
+                    "type": "Recreate"
+                }
+            },
+            "status": {}
+        },
+        {
+            "kind": "StorageClass",
+            "apiVersion": "storage.k8s.io/v1beta1",
+            "metadata": {
+                "name": "aws-efs",
+                "creationTimestamp": null
+            },
+            "provisioner": "example.com/aws-efs",
+            "reclaimPolicy": "Delete"
+        },
+	{
+		"apiVersion":"networking.k8s.io/v1",
+		"kind":"NetworkPolicy",
+		"metadata": {
+			"name":"efsblock"
+		},
+		"spec":{
+			"podSelector": {
+				"matchLabels":{
+					"virtue":"ViRtUe"
+				}
+			},
+			"egress": [
+				{"to": [
+					{"ipBlock":{
+						"cidr":"0.0.0.0/0",
+						"except":[__EFSBLOCKIPS]
+					}}
+				]}
+			],
+			"ingress": [
+				{"from": [
+					{"ipBlock":{
+						"cidr":"0.0.0.0/0",
+						"except":[__EFSBLOCKIPS]
+					}}
+				]}
+			]
+		}
+	}
+    ]
+}

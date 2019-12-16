@@ -1,0 +1,50 @@
+- name: Install AWS requirements
+  package: name={{ item }} state=latest
+  with_items:
+    - docker.io
+    - nfs-common
+    - awscli
+    - jq
+  become: true
+
+- name: Add user ubuntu to docker group
+  user:
+    name: ubuntu
+    groups:
+      docker
+  become: true
+  become_method: sudo
+  become_user: root
+  register: output
+
+- name: Copy efsshim files
+  synchronize:
+    src: "{{playbook_dir }}/../../linux/efsshim/"
+    dest: /home/ubuntu/
+
+- name: Create efsshim directory
+  file: path=/home/ubuntu/efsmount state=directory
+
+- block:
+    - name: Create .aws directory
+      file: path=~/.aws state=directory
+
+    # TODO: Create a custom IAM profile rather than giving this full permissions
+    - name: Install AWS configuration
+      template:
+        src: aws_config
+        dest: ~/.aws/config
+
+    - name: Install AWS credentials
+      template:
+        src: aws_credentials
+        dest: ~/.aws/credentials
+
+# TODO autostart efsshim
+- name: Setx on efsshim_autostart.sh
+  file:
+    path: /home/ubuntu/efsshim_autostart.sh
+    mode: 500
+
+- name: Start the efs shim
+  command: /home/ubuntu/efsshim_autostart.sh

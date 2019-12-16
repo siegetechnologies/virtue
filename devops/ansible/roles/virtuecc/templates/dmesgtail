@@ -1,0 +1,5 @@
+#!/bin/bash
+#appends virtueid to dmesg -w output
+VIRTUEID="VIRTUECC"
+## the concatentation
+dmesg -w | while read x; do printf "%s\t%s\n" "${VIRTUEID}" "${x}"; done

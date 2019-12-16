@@ -1,0 +1,10 @@
+chrony
+less
+logrotate
+openssh
+docker
+docker-openrc
+shadow
+bash
+util-linux
+haveged

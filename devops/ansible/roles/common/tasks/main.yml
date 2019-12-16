@@ -1,0 +1,54 @@
+---
+#- name: COMMON | Install kernel 4.13
+ # become: true
+#  apt:
+#    name: linux-image-4.13.0-1021-oem
+#    state: latest
+#    #upgrade: yes
+#    update_cache: yes
+ #   cache_valid_time: 86400 #One day
+ # register: apt_upgrade
+
+
+- name: COMMON | upgrade
+  become: true
+  apt:
+    state: latest
+    upgrade: yes
+    update_cache: yes
+  register: apt_upgrade
+
+- name: COMMON | Increase max file descriptors
+  become: true
+  pam_limits:
+    limit_item: nofile
+    limit_type: '-'
+    domain: '*'
+    value: 65536
+
+- name: COMMON | Optimize Network Kernel Parameters
+  become: true
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    reload: true
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ sysctl_settings }}"
+
+# always reboot
+- block:
+    - name: COMMON | Rebooting
+      shell: sleep 2 && reboot
+      async: 1
+      poll: 0
+  
+    - name: COMMON | Waiting for server to come online after reboot
+      wait_for_connection:
+        delay: 10
+        timeout: 300
+
+  become: true
+
+# Need to run setup here to refresh kernel version, as it changed during
+# package install
+- setup:

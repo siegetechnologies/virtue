@@ -1,0 +1,5 @@
+#vault_aws_access_key_id: INSERT_AWS_HERE
+#vault_aws_secret_key: INSERT_AWS_HERE
+# ad_password: for connector, service account. For simple ad, regular password
+# userdata: FSR userdata
+

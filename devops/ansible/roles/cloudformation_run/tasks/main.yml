@@ -1,0 +1,22 @@
+---
+# Check to see if python2 is installed.  If not, install it.
+# the weird update twice and sleep thing is to (attempt to) prevent a weird error that would sometimes occour at this stage
+- name: Template cf file
+  template:
+    src: justice.yml
+    dest: ~/justice.yml
+
+- name: set stack name fact
+  set_fact:
+    stackname: farside-infra
+
+- name: Delete stack
+  cloudformation:
+    stack_name: "{{ stackname }}"
+    state: absent
+
+- name: Create stack
+  cloudformation:
+    stack_name: "{{ stackname }}"
+    state: present
+    template: ~/justice.yml

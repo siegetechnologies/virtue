@@ -1,0 +1,13 @@
+[Unit]
+Description=Install MAVEN kernel modules
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/local/bin/maven.sh
+ExecStop=/sbin/modprobe -r mod_listener
+
+[Install]
+WantedBy=multi-user.target

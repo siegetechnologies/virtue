@@ -1,0 +1,102 @@
+---
+- name: Launch the temporary instance
+  hosts: localhost
+  user: ubuntu
+  connection: local
+  gather_facts: false
+  roles:
+    - ec2_amiimage
+
+- name: Provision new image
+  hosts: to_build
+  remote_user: ubuntu
+  gather_facts: false
+  become_user: root
+  become_method: sudo
+  roles:
+    - bootstrap
+    - common
+    - virtueenv
+    - testmachine
+    - fluentd
+
+- hosts: to_build
+  remote_user: ubuntu
+  gather_facts: false
+  become_user: root
+  become_method: sudo
+  become: true
+  tasks: 
+    - name: Ensure kernel module directory exists
+      file: 
+        path: /lib/modules/{{ ansible_kernel }}/extra/core
+        state: directory
+        owner: root
+      
+    - name: Deploy kernel modules
+      copy:
+        src: "{{ item }}"
+        dest: /lib/modules/{{ ansible_kernel }}/extra/core
+      with_fileglob:
+        - "{{ playbook_dir }}/../../linux/modules/bin/*.ko"
+
+    - name: Depmod
+      shell: depmod -a
+      become: yes
+
+    - name: Install kernel modules
+      modprobe: 
+        name: mod_listener
+        state: present
+
+    # - name: Setup MAVEN
+    #   command: /home/{{ ansible_ssh_user }}/maven.py
+    #   args:
+    #     stdin: |
+    #       add_trusted_daemon dockerd
+    #       add_trusted_daemon fluentd
+    #       set_risk 1
+
+- hosts: localhost
+  tasks:
+    - name: Check if previous AMI exists
+      ec2_ami_facts:
+        filters:
+          name: MavenNode
+        region: "{{ ec2.tagged_instances[0].region }}"
+      register: ami_find
+
+    - debug:
+        msg: AMI is {{ ami_find }}
+    - name: Delete old AMI if it exists
+      ec2_ami:
+        image_id: "{{ ami_find.images[0].image_id }}"
+        state: absent
+        wait: yes
+        delete_snapshot: yes
+        region: "{{ ec2.tagged_instances[0].region }}"
+      when: ami_find.images | length and ami_find.images[0].state == 'available'
+
+    - name: Bundle AMI (If older image was deleted, this may take some time)
+      ec2_ami:
+        instance_id: "{{ ec2.tagged_instances[0].id }}"
+        image_id:
+        region: "{{ ec2.tagged_instances[0].region }}"
+        state: present
+        description: "Virtue Maven Image provisioned: {{ ansible_date_time.iso8601 }}"
+        name: MavenNode
+        wait: yes
+      register: amioutput
+      until: amioutput.failed == false
+      retries: 15
+      delay: 30
+
+    - name: Terminate Temporary Instance
+      ec2:
+        state: absent
+        region: "{{ ec2.tagged_instances[0].region }}"
+        instance_ids: "{{ ec2.tagged_instances[0].id }}"
+
+    - name: Print output
+      debug: msg="{{ amioutput }}"
+        

@@ -1,0 +1,82 @@
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+;//
+;//   Copyright (c) 2018 Siege Technologies. All Rights Reserved.
+;//
+;//   Module Name:
+;//      winDivertDrv.Inf
+;//
+;//   Abstract:
+;//      INF file for installing the WFPSampler callout driver.
+;//
+;//   Author:
+;//      Rich Carter    
+;//
+;//   Revision History:
+;//
+;//      [ Month ][Day] [Year] - [Revision]-[ Comments ]
+;//      
+;//
+;///////////////////////////////////////////////////////////////////////////////////////////////////
+
+[Version]
+   Signature   = "$Windows NT$"
+   Class       = WFPCALLOUTS
+   ClassGuid   = {5A4E2F9B-0CA4-4476-A0E2-F585B30F6273}
+   Provider    = %ProviderString%
+   CatalogFile = winDivertDrv.Cat
+   DriverVer = 01/17/2018,13.37.51.928
+
+[SourceDisksNames]
+   1 = %winDivertDrvDiskId%,,,""
+
+[SourceDisksFiles]
+   winDivertDrv.sys = 1,,
+
+[DestinationDirs]
+   DefaultDestDir           = 12                                                        ;/// %WinDir%\System32\Drivers
+   winDivertDrv.DriverFiles = 12                                                        ;/// %WinDir%\System32\Drivers
+
+[DefaultInstall]
+   OptionDesc = %winDivertDrvDescription%
+   CopyFiles  = winDivertDrv.DriverFiles
+
+[DefaultInstall.Services]
+   AddService = %winDivertDrvServiceName%,,winDivertDrv.Service
+
+[DefaultUninstall]
+   DelFiles = winDivertDrv.DriverFiles
+ 
+[DefaultUninstall.Services]
+   DelService = %winDivertDrvServiceName%,0x200                                         ;/// SPSVCINST_STOPSERVICE
+   DelReg   = WFPCalloutClassReg
+
+[WFPCalloutClassReg]
+   HKR,,,0,%WFPCalloutClassName%
+   HKR,,Icon,,-5
+   HKR,,SilentInstall,,1
+   HKR,,DeviceCharacteristics,0x10001,0x100                                                        ;/// FLG_ADDREG_BINVALUETYPE | FLG_ADDREG_TYPE_MULTI_SZ, FILE_DEVICE_SECURE_OPEN
+   HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;LS)"                                        ;/// Permit Generic All access to SYstem, Built-in Admin, and Local System.
+
+[winDivertDrv.DriverFiles]
+   winDivertDrv.sys,,,0x00000040                                                        ;/// COPYFLG_OVERWRITE_OLDER_ONLY
+
+[winDivertDrv.Service]
+   DisplayName    = %winDivertDrvServiceName%
+   Description    = %winDivertDrvServiceDescription%
+   ServiceType    = 1                                       ;/// SERVICE_KERNEL_DRIVER
+   StartType      = 3                                       ;SERVICE_SYSTEM_START = 1, SERVICE_DEMAND_START = 3
+   ErrorControl   = 1                                       ;/// SERVICE_ERROR_NORMAL
+   ServiceBinary  = %12%\winDivertDrv.sys                   ;/// %WinDir%\System32\Drivers\winDivertDrv.sys
+   LoadOrderGroup = NDIS                                    ;/// Load immediately after TCPIP.sys
+   Dependencies   = TCPIP
+   AddReg = WFPCalloutClassReg
+
+[Strings]
+   ProviderString                 = "Siege Technology"
+   WFPCalloutClassName            = "WFP Callout"
+   winDivertDrvDeviceDescription  = "winDivert Device"
+   winDivertDrvDescription        = "winDivert Driver"
+   winDivertDrvServiceName        = "winDivertDrv"
+   winDivertDrvServiceDescription = "winDivertDrv Service - Callouts"
+   winDivertDrvDiskId             = "winDivertDrv Installation Disk"
+

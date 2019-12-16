@@ -1,0 +1,13 @@
+---
+# Variables used to provision EC2 instances
+ec2_config:
+  region: "{{ virtue_aws_region }}"
+  keypair: id_rsa
+  instance_type: t2.medium
+  image: ami-059eeca93cf09eebd
+  vpc_subnet_id: #-- subnet name --#
+  assign_public_ip: yes
+  instance_tag_name: MavenNode
+  remote_user: ubuntu
+  ssh_path: ~/.ssh/
+#-- Path to SSH key, maybe ~/.ssh/id_rsa --#

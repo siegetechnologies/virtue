@@ -1,0 +1,171 @@
+# Nothing will actually go here, but if it isn't present some later code will be angry
+- name: Setup empty Windows virtue VPC
+  ec2_vpc_net:
+    state: present
+    cidr_block: "{{ win_cidr }}"
+    region: "{{ virtue_aws_region }}"
+    name: "Win_Virtue_VPC"
+  register: win_vpc
+  until: workspaces_vpc.failed == false
+  retries: 3
+  delay: 1
+
+- name: Setting up Workspace VPC
+  ec2_vpc_net:
+    state: present
+    cidr_block: "{{ virtue_workspaces_vpc_cidr_block }}"
+    region: "{{ virtue_aws_region }}"
+    name: "VirtueWorkspace_VPC"
+  register: workspaces_vpc
+  until: workspaces_vpc.failed == false
+  retries: 3
+  delay: 1
+
+- name: Debug
+  debug: msg={{workspaces_vpc}}
+
+- name: Set VPC Id in facts
+  set_fact:
+    vpc_id: "{{ workspaces_vpc.vpc.id }}"
+
+
+- name: Create wininworkspace pub subnet
+  ec2_vpc_subnet:
+    state: present
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ win_pub_sub_cidr }}"
+    az: "{{ virtue_aws_region }}a"
+    purge_tags: false
+    resource_tags:
+      Name: "Win_Virtue Public"
+  register: win_pub_subnet
+  until: win_pub_subnet.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+  
+- name: Create wininworkspace pri subnet
+  ec2_vpc_subnet:
+    state: present
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ win_pri_sub_cidr }}"
+    az: "{{ virtue_aws_region }}a"
+    purge_tags: false
+    resource_tags:
+      Name: "Win_Virtue Private"
+  register: win_pri_subnet
+  until: win_pri_subnet.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+  
+- name: Register Subnet Variable
+  set_fact:
+    win_pub_sub_id: "{{ win_pub_subnet.subnet.id }}"
+    win_pri_sub_id: "{{ win_pri_subnet.subnet.id }}"
+
+- name: Create Internet Gateway for VPC
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    state: present
+  register: vpc_igw
+  until: vpc_igw.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Find Internet gateway, since the last thing probably failed in APL acct
+  ec2_vpc_igw_facts:
+    region: "{{ virtue_aws_region }}"
+    filters: 
+      "attachment.vpc-id": "{{vpc_id}}"
+  register: vpc_igw
+
+- name: Create NAT Gateway for VPC (this may take awhile)
+  ec2_vpc_nat_gateway:
+    subnet_id: "{{ win_pub_sub_id }}"
+    region: "{{ virtue_aws_region }}"
+    state: present
+    wait: yes
+    if_exist_do_not_create: yes
+  register: vpc_nat
+  
+- name: Register Internet Gateway ID and nat
+  set_fact:
+    igw_id: "{{ vpc_igw.internet_gateways.0.internet_gateway_id }}"
+    nat_id: "{{ vpc_nat.nat_gateway_id }}"
+
+    
+- name: Setup necessary route table
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    purge_subnets: no
+    purge_routes: no
+
+    tags:
+      Name: VirtueWorkspace_rt
+    subnets:
+      - "{{ workspaces_subnet_id }}"
+      - "{{ workspaces_subnet_id_2 }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_id }}"
+
+- name: Setup necessary route table for private subnet
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    tags:
+      Name: Win_Virtue_rt_private
+    subnets:
+      - "{{ win_pri_sub_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        nat_gateway_id: "{{ nat_id }}"
+
+
+- name: Setup necessary route table for public subnet
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    tags:
+      Name: Win_Virtue_rt_public
+    subnets:
+      - "{{ win_pub_sub_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_id }}"
+
+
+- name: Setup workspaces security group
+  ec2_group:
+    name: "VirtueWorkspace_sg"
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    description: VirtueWorkspace Security Group
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow all SSH traffic
+
+
+- name: Setup Win Virtue security group
+  ec2_group:
+    name: "Win_Virtue_sg"
+    tags:
+      Name: "Win_Virtue_sg"
+    vpc_id: "{{ vpc_id }}"
+    region: "{{virtue_aws_region}}"
+    description: Windows Virtue Security Group
+    rules:
+      - proto: tcp
+        ports:
+          - 3389
+        cidr_ip: 0.0.0.0/0 # TODO change to 10.0.0.0/8 once debugging over
+        rule_desc: Allow all RDP traffic

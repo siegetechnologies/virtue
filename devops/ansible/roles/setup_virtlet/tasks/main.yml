@@ -1,0 +1,13 @@
+---
+
+- name: Run virtlet setup script
+  command: ~/create_virtlet.sh
+  environment:
+    AWS_CONFIG_FILE: /home/ubuntu/.aws/config
+    AWS_SHARED_CREDENTIALS_FILE: /home/ubuntu/.aws/credentials
+  register: virtlet_output
+  failed_when: virtlet_output.rc != 0 and 'already exists' not in virtlet_output.stderr
+
+- debug: msg={{virtlet_output}}
+
+

@@ -1,0 +1,8 @@
+---
+# Stand up the VPC for Virtues Command and Control servers
+- hosts: localhost
+  user: ubuntu
+  connection: local
+  gather_facts: false
+  roles:
+    - bootstrap

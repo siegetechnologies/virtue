@@ -1,0 +1,13 @@
+---
+# Variables used to provision EC2 instances
+ec2_config:
+  region: "{{virtue_aws_region}}"
+  keypair_name: Build_Keypair
+  instance_type: c4.2xlarge
+#  image: ami-0ac019f4fcb7cb7e6
+  image: ami-759bc50a	# 16.04
+  assign_public_ip: yes
+  instance_tag_name: VirtueBuild
+  remote_user: ubuntu
+  ssh_path: ~/.ssh/
+#-- Path to SSH key, maybe ~/.ssh/id_rsa --#

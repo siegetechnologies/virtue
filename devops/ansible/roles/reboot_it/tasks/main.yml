@@ -1,0 +1,27 @@
+
+#---
+# reboots
+#requires ansible 2.7 or newer
+
+#- name: Reboot and wait
+#  reboot:
+
+
+
+---
+#reboots old style
+- name: Reboot immediately
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+
+#would sometimes re-connect immediately?
+- pause:
+  seconds: 30
+
+- name: Wait for the reboot to complete
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300

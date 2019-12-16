@@ -1,0 +1,271 @@
+
+---
+# Provisions the command and control server for virtue
+- name: Install AWS requirements
+  package: name={{ item }} state=latest
+  with_items:
+    - jq
+    - docker.io
+  become: true
+
+- name: Install requirements for new REST server
+  block:
+     # could probably remove python-* after the install finishes, if it causes problems for the REST server
+    - name: Install python stuff (rest server needs python3, ansible needs python2)
+      apt:
+        name:
+        #- python-boto3
+        #- python-botocore
+        #- python-boto
+        - python3-pip
+        - ruby
+        - ruby-dev
+        - make
+        - gcc
+        - qemu-utils
+        #- python3-kubernetes
+        #- python3-boto3
+        #- python3-botocore
+        #- python3-boto
+        #- python3-paramiko
+        #- python3-scp
+        #- python3-requests
+        #- awscli
+      become: true
+      update_cache: true
+      become_method: sudo
+      become_user: root
+
+    - name: pip3 Install kubernetes and boto
+      pip: 
+        name:
+        - kubernetes
+        - boto3
+        - botocore
+        - boto
+        - paramiko
+        - awscli
+        - scp
+        - requests
+        - fluent-logger
+        state: forcereinstall
+        executable: pip3
+      become: true
+      become_method: sudo
+      become_user: root
+      register: output
+
+    - name: gem install fluentd
+      gem:
+        name: fluentd
+        user_install: no
+        include_dependencies: yes
+        state: latest
+      become: true
+
+    - name: gem install fluentd secure forward plugin
+      gem:
+        name: fluent-plugin-secure-forward
+        user_install: no
+        include_dependencies: yes
+        state: latest
+      become: true
+
+    - name: gem install fluentd remote syslog plugin
+      gem:
+        name: fluent-plugin-remote_syslog
+        user_install: no
+        include_dependencies: yes
+        state: latest
+      become: true
+
+    - name: gem install fluentd plugin copy ex
+      gem:
+        name: fluent-plugin-copy_ex
+        user_install: no
+        include_dependencies: yes
+        state: latest
+      become: true
+
+    - name: gem install fluentd s3 plugin
+      gem:
+        name: fluent-plugin-s3
+        user_install: no
+        include_dependencies: yes
+        state: latest
+      become: true
+
+- name: Add user ubuntu to docker group
+  user:
+    name: ubuntu
+    groups:
+      docker
+  become: true
+  become_method: sudo
+  become_user: root
+  register: output
+
+
+- name: Create .ssh directory
+  file:
+    path: /home/ubuntu/.ssh
+    state: directory
+
+- name: Check if id_rsa.pub exists
+  stat:
+    path: /home/ubuntu/.ssh/id_rsa.pub
+  register: stat_result
+
+- name: Run ssh-keygen to generate it, if it doesnt exist
+  command: ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+  when: stat_result.stat.exists == False 
+
+- name: Fetch id_rsa.pub
+  fetch:
+    flat: yes # this disables brain-dead default behavior of putting the file in <ip>/file
+    src: /home/ubuntu/.ssh/id_rsa.pub
+    dest: "{{ playbook_dir }}/../../linux/efsshim/id_rsa.pub"
+
+#untested-ish
+#- name: reset ssh connection for docker group load
+#  meta: reset_connection
+#    ignore_errors: yes
+
+- name: Create fluentd config directory
+  file: path=/etc/fluent state=directory
+  become: true
+
+- name: Set fluent ca pass TODO do this better
+  set_fact:
+    fluent_ca_pass: password1
+
+- name: Install fluent.conf
+  template:
+    src: fluent.conf
+    dest: /etc/fluent/fluent.conf
+  become: true
+
+- name: Install pstail
+  template:
+    src: pstail
+    dest: /etc/fluent/pstail
+    mode: 0755
+  become: true
+
+- name: Install dmesgtail
+  template:
+    src: dmesgtail
+    dest: /etc/fluent/dmesgtail
+    mode: 0755
+  become: true
+
+
+
+- name: Generate fluentd cert
+  command: /usr/local/bin/secure-forward-ca-generate /etc/fluent/ {{fluent_ca_pass}}
+  become: true
+
+- name: Install fluentd autostart systemd file
+  template:
+    src: systemd-fluentd
+    dest: /etc/systemd/system/fluentd.service
+  become: true
+
+- name: Set fluentd to autostart on boot
+  command: systemctl enable fluentd
+  become: true
+
+- name: start fluentd now
+  command: systemctl start fluentd
+  become: true
+
+- name: Install Kubernetes Client
+  block:
+    - name: Download kubectl
+      get_url:
+        url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubernetes_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '+x'
+      become: true
+      tags:
+        - kubectl
+
+    - name: Download kops
+      get_url:
+        url: "https://github.com/kubernetes/kops/releases/download/{{ kops_version }}/kops-linux-amd64"
+        dest: /usr/local/bin/kops
+        mode: '+x'
+      become: true
+
+
+
+
+
+#TODO might have to set permissions on http2
+- name: Install new CC rest code
+  synchronize:
+    src: "{{ playbook_dir }}/../../linux/rest/"
+    dest: /home/ubuntu/rest/
+
+- name: Install elf-mangler and misc userspace code for use in image building
+  synchronize:
+    src: "{{ playbook_dir }}/../../linux/userspace/"
+    dest: /home/ubuntu/userspace/
+
+- name: Install maven code for use in image building
+  synchronize:
+    src: "{{ playbook_dir }}/../../linux/modules/"
+    dest: /home/ubuntu/modules/
+
+- name: Make rest stuff executable
+  command: bash -c 'chmod +x ~/rest/http2.py'
+
+- name: Install new workspace code for rest to serv
+  synchronize:
+    src: "{{ playbook_dir }}/../../linux/rest/workspace/"
+    dest: /home/ubuntu/workspace/
+
+- name: Generate private key to use for ssl operations
+  openssl_privatekey:
+    path: /home/ubuntu/rest/key.pem
+    state: present
+  register: sslkey_out
+
+- name: Generate CSR for self-signed certificate
+  openssl_csr:
+    path: /home/ubuntu/rest/req.csr
+    privatekey_path: "{{ sslkey_out.filename }}"
+    common_name: ""
+  register: csr_out
+
+- name: Generate self signed cert for http2.py
+  openssl_certificate:
+    path: /home/ubuntu/rest/cert.pem
+    privatekey_path: "{{ csr_out.privatekey }}"
+    csr_path: "{{ csr_out.filename }}"
+    provider: selfsigned
+
+- name: Stat the cert.pem file
+  stat:
+    path: /home/ubuntu/rest/cert.pem
+  register: stat
+
+- name: Check to make sure cert was generated
+  fail: msg="Cert was not generated successfully, check output"
+  when: stat.stat.exists == False or stat.stat.size == 0
+
+# Copy AWS credentials from source to build machine.  This will make it easier to
+# spawn test machines from the buildserver if necessary.
+- block:
+    - name: Create .aws directory
+      file: path=~/.aws state=directory
+
+    - name: Install AWS configuration
+      template:
+        src: aws_config
+        dest: ~/.aws/config
+
+    - name: Install AWS credentials
+      template:
+        src: aws_credentials
+        dest: ~/.aws/credentials

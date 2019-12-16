@@ -1,0 +1,45 @@
+API doc for the maven_api in mod_listener
+API commands are issued from the python script in userspace/maven_us.py
+
+add_trusted_daemon <name>
+	Normally, in enforcing mode, maven prevents new processes with uid 0 from starting.
+	However, this prevents some necessary daemons from doing their work, as they will spawn subprocesses.
+	Adding a trusted daemon allows new root-level processes to run, as long
+		as they have that trusted daemon as a parent or parent of a parent.
+	"add_trusted_daemon systemd" allows any process to run, since systemd is 
+		an ancestor to all processes in the tree
+	"add_trusted_daemon dockerd" allows new docker containers to be spawned.
+	Internally, this function works by scanning the process tree for the first
+		process with the given common name. It then adds that processes pid
+		to a list of approved ancestors.
+	This means the daemon must be started *before* this function is called.
+	Once enforcing mode is turned on, no new daemons may be started, even if
+		their name was added as a trusted daemon 
+		(since they will have a different pid)
+	Future Work:
+		per-container enforcing
+
+await_container <uuid>
+	Call this before you start a docker container.
+	It does some setup so other systems can retrieve a uuid from arbitrary processes
+	If containers are started without this, they may be prevented from executing stuff
+	The uuid must be a true uuid, verifiable with linux's uuid_is_valid function
+
+await_virtue <uuid> <count>
+	Maps the uuid to the next <count> containers
+	'await_container <uuid>' is the same as 'await_virtue <uuid> 1'
+
+set_risk <0-9>:
+	Sets the global risk for the system.
+	Lower risks are more permissive, and have less verbose logging
+	Risk of 0 is the most permissive, allowing anything.
+		This mode is intended only for testing and development.
+		All user accessible systems should maintain a risk of at least 1
+		NOTE: Even on risk 0, logging is still performed
+	Risk of 9 is intended to be the most restrictive.
+	It is not outside of scope for the risk to change without a call to this function, 
+		if the system determines on its own that the risk profile has changed.
+		Changing risk should never happen without a log message, however.
+
+
+

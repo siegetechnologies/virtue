@@ -1,0 +1,34 @@
+---
+## Git Repository OAuth token
+
+# Located in your vault file. This file is created by the end user and not
+# included in the repository
+git_repo_directory: ~/virtue
+## AWS configuration
+aws_access_key_id: "{{ vault_aws_access_key_id }}"
+aws_secret_access_key: "{{ vault_aws_secret_key }}"
+
+#ansible_ssh_private_key_file: ~/default.pem
+virtue_aws_region: us-east-1
+# this is the name of the kubernetes cluster
+virtue_cluster_name: siege-virtuecluster.com
+# this is the full name of the AD domain
+virtue_domain: siege.virtue.com
+
+# bucket names must be unique
+# Change this if you're in a different acct. Ex. siege-apl
+s3_bucket_prefix: siege
+
+apl_fsr: 10.2.1.4
+
+cc_cidr: 10.1.0.0/16
+cc_sub_cidr: 10.1.1.0/24
+workspace_cidr: 10.2.0.0/16
+workspace_sub1_cidr: 10.2.1.0/24
+workspace_sub2_cidr: 10.2.2.0/24
+cluster_cidr: 10.3.0.0/16
+#change these to 4 if not wininworkspace
+win_cidr: 10.4.0.0/16
+win_pri_sub_cidr: 10.2.3.0/24
+win_pub_sub_cidr: 10.2.4.0/24
+

@@ -1,0 +1,4 @@
+---
+- name: fail
+  fail:
+    msg: Intentional failure

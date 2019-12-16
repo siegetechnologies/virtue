@@ -1,0 +1,55 @@
+- name: Check if previous AMI exists
+  ec2_ami_facts:
+    filters:
+      name: MavenNode
+    region: "{{ virtue_aws_region }}"
+  register: ami_find
+
+- debug:
+    msg: AMI is {{ ami_find }}
+
+- name: Delete old AMI if it exists
+  ec2_ami:
+    image_id: "{{ ami_find.images[0].image_id }}"
+    state: absent
+    wait: yes
+    delete_snapshot: yes
+    region: "{{ virtue_aws_region }}"
+  when: ami_find.images | length and ami_find.images[0].state == 'available'
+
+- name: Find ec2 image
+  ec2_instance_facts:
+    filters:
+      tag:Name: VirtueBuild
+      instance-state-name: running
+  register: ec2facts
+
+- name: stop
+  fail: 
+    msg: No VirtueBuild instance found
+  when: ec2facts.instances == []
+
+- name: Bundle AMI (If older image was deleted, this may take some time)
+  ec2_ami:
+    instance_id: "{{ ec2facts.instances.0.instance_id }}"
+    image_id:
+    state: present
+    description: "Virtue Maven Image provisioned: {{ ansible_date_time.iso8601 }}"
+    name: MavenNode
+    wait: yes
+  register: amioutput
+  until: amioutput.failed == false
+  retries: 15
+  delay: 30
+
+- name: Terminate Temporary Instance
+  ec2:
+    state: absent
+    instance_ids:
+    - "{{ ec2facts.instances.0.instance_id }}"
+    region: "{{ virtue_aws_region }}"
+
+- name: Print output
+  debug: msg="{{ amioutput }}"
+    
+

@@ -1,0 +1,41 @@
+{
+    "kind": "List",
+    "apiVersion": "v1",
+    "metadata": {},
+    "items": [
+        {
+            "kind": "PersistentVolumeClaim",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "u__SANIURD-urd-volume",
+                "creationTimestamp": null,
+                "annotations": {
+                    "volume.beta.kubernetes.io/storage-class": "aws-efs"
+                },
+		"labels": {
+			"userid": "__USER",
+			"roleid": "__ROLE",
+			"virtue": "ViRtUe"
+		}
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteMany"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "10Gi"
+                    }
+                },
+		"matchLabels": {
+			"userID": "__USER",
+			"roleID": "__ROLE",
+			"virtue": "ViRtUe"
+		}
+            },
+            "status": {
+                "phase": "Pending"
+            }
+        }
+    ]
+}

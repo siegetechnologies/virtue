@@ -1,0 +1,33 @@
+---
+
+- name: GIT radare2
+  git:
+    repo: 'https://www.github.com/radare/radare2.git'
+    dest: '/home/ubuntu/radare2/'
+
+
+- name: Compile r2
+  shell: 'which r2 || ./sys/install.sh'
+  args:
+    chdir: '/home/ubuntu/radare2/'
+  register: radare_compile_output
+  failed_when: radare_compile_output.rc != 0
+
+- debug: msg={{radare_compile_output}}
+
+- name: Install r2 libr
+  command: 'make install'
+  args:
+    chdir: '/home/ubuntu/radare2/libr/'
+  become: true
+  become_method: sudo
+  become_user: root
+  register: radare_install_output
+  failed_when: radare_install_output.rc != 0
+
+- debug: msg={{radare_install_output}}
+
+- name: Cleanup r2
+  file:
+    state: absent
+    path: "/home/ubuntu/radare2/"

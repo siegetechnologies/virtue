@@ -1,0 +1,10 @@
+[Unit]
+Description=Fluentd logging service
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/fluentd
+
+[Install]
+WantedBy=multi-user.target

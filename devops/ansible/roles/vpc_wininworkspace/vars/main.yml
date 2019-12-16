@@ -1,0 +1,9 @@
+---
+virtue_workspaces_vpc_cidr_block: "{{ workspace_cidr }}"
+virtue_workspaces_cidr_block: "{{ workspace_sub1_cidr }}"
+virtue_workspaces_cidr_block_2: "{{ workspace_sub2_cidr }}"
+virtue_win_vpc_cidr_block: "{{ win_cidr }}"
+virtue_win_cidr_block: "{{ win_sub_cidr }}"
+
+aws_access_key: "{{ aws_access_key_id }}"
+aws_secret_key: "{{ aws_secret_access_key }}"

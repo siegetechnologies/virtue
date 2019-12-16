@@ -1,0 +1,84 @@
+---
+#- name: Search for MavenNode AMI
+#  ec2_ami_facts:
+#    filters:
+#      name: MavenNode
+#  register: maven_images
+#  failed_when: maven_images.images == []
+
+#- name: Uninstall useless python packages
+#  apt:
+#    name:
+#    - python-boto
+#    - python-boto3
+#    - python-botocore
+#    state: absent
+#  become: true
+
+
+- name: Install create_cluster script
+  template:
+    src: create_cluster.sh
+    dest: ~/create_cluster.sh
+    mode: "+x"
+
+- name: Install create_efs script
+  template:
+    src: create_efs.sh
+    dest: ~/create_efs.sh
+    mode: "+x"
+
+- name: Install create_virtlet script
+  template:
+    src: create_virtlet.sh
+    dest: ~/create_virtlet.sh
+    mode: "+x"
+
+- name: Install fix_dns script
+  template:
+    src: fix_dns.sh
+    dest: ~/fix_dns.sh
+    mode: "+x"
+
+- name: Install fix_dns_helper script
+  template:
+    src: fix_dns_helper.sh
+    dest: ~/fix_dns_helper.sh
+    mode: "+x"
+
+- name: Install install_criproxy script
+  template:
+    src: install_criproxy.sh
+    dest: ~/install_criproxy.sh
+    mode: "+x"
+
+- name: Install efs template
+  template:
+    src: template_efs.json
+    dest: ~/template_efs.json
+
+- name: Install rbac template
+  template:
+    src: template_rbac.yaml
+    dest: ~/template_rbac.yaml
+
+- name: Ensure pki directories exist
+  file:
+    path: '{{ item }}'
+    state: directory
+  become: true
+  with_items:
+    - /etc/pki/temp
+    - /etc/pki/virtue
+
+- name: Run cluster setup script
+  command: ./create_cluster.sh
+  environment:
+    AWS_CONFIG_FILE: /home/ubuntu/.aws/config
+    AWS_SHARED_CREDENTIALS_FILE: /home/ubuntu/.aws/credentials
+  register: cluster_output
+  failed_when: cluster_output.rc != 0 and 'already exists' not in cluster_output.stderr
+
+
+- debug: msg={{cluster_output}}
+

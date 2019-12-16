@@ -1,0 +1,16 @@
+---
+- name: "virtue-build"
+  aws:
+      type: "t2.micro"
+      user: "ubuntu"
+      key: '~/.ssh/TestRangeKeyPair.pem'
+      secgroups:
+          - vagrant
+      tags:
+        Name: virtue-build
+        Env: Development
+  box:
+      vb: "ubuntu/xenial64"
+      aws: "ami-66506c1c"
+  ram: 4096
+  vcpu: 4

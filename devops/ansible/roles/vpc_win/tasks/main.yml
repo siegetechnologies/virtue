@@ -1,0 +1,129 @@
+---
+# Stand up the VPC for the Virtue Command and Control services
+- name: Setting up Windows VPC
+  ec2_vpc_net:
+    region: "{{ virtue_aws_region }}"
+    state: present
+    cidr_block: "{{ virtue_win_vpc_cidr_block }}"
+    name: "Win_Virtue_VPC"
+  register: win_vpc
+  until: win_vpc.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Debug
+  debug: msg={{win_vpc}}
+
+- name: Set VPC Id in facts
+  set_fact:
+    vpc_id: "{{ win_vpc.vpc.id }}"
+
+# Some background on network topology here.
+# Windows virtues exist as ec2 instances in a private subnet
+# Without a public IP, they need a nat gateway to access the internet
+# The nat gateway needs to be in a public subnet, with an internet
+# gateway
+# 0.0.0.0/0 routing in private subnet needs to point to the nat
+# 0.0.0.0/0 routing in public subnet points to igw
+# here's a link
+# https://aws.amazon.com/premiumsupport/knowledge-center/ec2-internet-connectivity/
+
+- name: Create Public windows subnet
+  ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ win_pub_sub_cidr }}"
+    region: "{{ virtue_aws_region }}"
+    az: "{{ virtue_aws_region }}a"
+    resource_tags:
+      Name: "Win_Virtue Public"
+  register: win_pub_subnet
+  until: win_pub_subnet.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Create private windows subnet
+  ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ win_pri_sub_cidr }}"
+    region: "{{ virtue_aws_region }}"
+    az: "{{ virtue_aws_region }}a"
+    resource_tags:
+      Name: "Win_Virtue Private"
+  register: win_pri_subnet
+  until: win_pri_subnet.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Register Subnet Variables
+  set_fact:
+    win_pub_sub_id: "{{ win_pub_subnet.subnet.id }}"
+    win_pri_sub_id: "{{ win_pri_subnet.subnet.id }}"
+
+- name: Create Internet Gateway for VPC
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    state: present
+  register: vpc_igw
+  until: vpc_igw.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Create NAT Gateway for VPC (this may take awhile)
+  ec2_vpc_nat_gateway:
+    subnet_id: "{{ win_pub_sub_id }}"
+    region: "{{ virtue_aws_region }}"
+    state: present
+    wait: yes
+    if_exist_do_not_create: yes
+  register: vpc_nat
+
+- name: Register igw/nat IDs
+  set_fact:
+    igw_id: "{{ vpc_igw.gateway_id }}"
+    nat_id: "{{ vpc_nat.nat_gateway_id }}"
+
+- name: Setup necessary route table for private subnet
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    tags:
+      Name: Win_Virtue_rt_private
+    subnets:
+      - "{{ win_pri_sub_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        nat_gateway_id: "{{ nat_id }}"
+
+- name: Setup necessary route table for public subnet
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    tags:
+      Name: Win_Virtue_rt_public
+    subnets:
+      - "{{ win_pub_sub_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_id }}"
+
+- name: Setup Win Virtue security group
+  ec2_group:
+    name: "Win_Virtue_sg"
+    tags:
+      Name: "Win_Virtue_sg"
+    vpc_id: "{{ vpc_id }}"
+    region: "{{virtue_aws_region}}"
+    description: Windows Virtue Security Group
+    rules:
+      - proto: tcp
+        ports:
+          - 3389
+        cidr_ip: 0.0.0.0/0 # TODO change to 10.0.0.0/8 once debugging over
+        rule_desc: Allow all RDP traffic

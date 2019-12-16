@@ -1,0 +1,82 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+
+require 'vagrant-aws'
+require 'yaml'
+
+machines = YAML.load_file(File.join(File.dirname(__FILE__), 'config.yml'))
+aws_config = YAML.load_file(File.join(File.dirname(__FILE__), 'aws.yml'))
+
+Vagrant.configure("2") do |config|
+  # Default to using the AWS dummy.
+  config.vm.box = "dummy"
+
+
+  # Configure AWS settings
+  config.vm.provider 'aws' do |aws|
+    
+    ## Specify AWS access info from config file
+    aws.access_key_id = aws_config['access_key_id']
+    aws.secret_access_key = aws_config['secret_access_key']
+    aws.keypair_name = aws_config['keypair_name']
+    aws.region = aws_config['region']
+  end
+
+  # Loop through machine config and set per-VM information
+  machines.each do |machine|
+    config.vm.define machine['name'] do |srv|
+
+      # Hostname
+      srv.vm.hostname = machine['name']
+
+      # No update checking
+      srv.vm.box_check_update = false
+
+      # Disable shared directory.  We will push data over on provision.
+      # If necessary rerun 'vagrant provision'.
+      srv.vm.synced_folder '.', '/vagrant', disabled: true
+
+      # Set per-machine AWS provider configuration/overrides
+      srv.vm.provider 'aws' do |aws, override|
+        aws_opts = machine['aws']
+        override.ssh.private_key_path = aws_opts['key']
+        override.ssh.username = aws_opts['user']
+        
+        aws.instance_type = aws_opts['type']
+        aws.ami = machine['box']['aws']
+        aws.security_groups = aws_opts['secgroups']
+        aws.tags = aws_opts['tags']
+
+        srv.vm.provision "file" do |file|
+          file.source = aws_opts['key']
+          file.destination = aws_opts['key']
+        end
+      end
+
+      # Set per-machine Virtualbox provider configuration/overrides
+      srv.vm.provider 'virtualbox' do |vb, override|
+        override.vm.box = machine['box']['vb']
+        vb.memory = machine['ram']
+        vb.cpus = machine['vcpu']
+      end
+    end
+  end
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "playbook.yml"
+    ansible.ask_vault_pass = true
+    ansible.host_key_checking = false
+
+    ansible.groups = {
+      "testmachines" => [
+        "virtue-test"
+      ]
+    }
+  end
+
+end

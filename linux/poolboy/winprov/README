@@ -1,0 +1,13 @@
+This runs any powershell scripts in the cd drive
+use nssm to turn it into a service
+
+Run the following from an admin powershell
+> 'nssm install winprov'
+
+This should bring up a GUI. Here's what you need to do
+Under 'Application' tab, 'Path' should be set to the winprov.exe path
+Under 'Details'->'Startup Type', choose 'Automatic (Delayed Start)'
+Under 'Exit Actions'->Restart', choose 'Stop Service (oneshot mode)'
+Under 'I/O', setting up a output or error log file is optional, but recommended
+
+and set up stuff like I/O redirection, etc

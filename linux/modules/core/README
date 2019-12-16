@@ -1,0 +1,23 @@
+Core functionality modules of the MAVEN microvisor
+
+allocator: A custom allocator for MAVEN. Reserves several pools of various size memory
+	at startup
+	and uses a custom O(1) allocator to manage MAVEN's internal memory
+
+mod_integrity: a module to verify memory integrity
+	hashes chunks of memory, or return values from functions on startup
+	if hashes change in the future, capable of notifying someone
+
+mod_interrupt: interrupt hooking module
+	hook into any entry in the IDT. Inserts a custom handler as
+	that runs before or in place of the real handler
+
+mod_kl: a simple keylogger. Prints the number of every key pressed to the syslog
+
+mod_log: a skeleton logging framework. Currently only exports a function that
+	prints info to the syslog
+
+mod_net: network traffic sniffer, uses netfilter to examine incoming and outgoing
+	packets pre-routing. Prints src and dest IPs to syslog
+
+mod_syscall: hooks into syscalls

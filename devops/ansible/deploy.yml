@@ -1,0 +1,48 @@
+---
+- hosts: testmachines
+  become: true
+  become_method: sudo
+  remote_user: ubuntu
+  tasks:
+    - name: Remove any currently installed VirtUE sensors
+      modprobe:
+        name: "{{ item }}"
+        state: absent
+      with_items:
+        - mod_listener
+        - mod_interrupt
+        - mod_log
+        - mod_net
+        - mod_registry
+        - mod_sensors
+        - mod_syscall
+
+    - name: Ensure kernel module directory exists
+      file: 
+        path: /lib/modules/{{ ansible_kernel }}/extra/core
+        state: directory
+        owner: root
+      
+    - name: Deploy kernel modules
+      copy:
+        src: "{{ item }}"
+        dest: /lib/modules/{{ ansible_kernel }}/extra/core
+      with_fileglob:
+        - "{{ playbook_dir }}/../../../MAVEN/os/linux/modules/bin/*.ko"
+
+    - name: Depmod
+      shell: depmod -a
+      become: yes
+
+    - name: Install kernel modules
+      modprobe: 
+        name: mod_listener
+        state: present
+
+    - name: Setup MAVEN
+      command: /home/{{ ansible_ssh_user }}/maven.py
+      args:
+        stdin: |
+          add_trusted_daemon dockerd
+          add_trusted_daemon fluentd
+          set_risk 1

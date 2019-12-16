@@ -1,0 +1,120 @@
+---
+# Stand up the VPC for the Virtue Workspaces
+- name: Setting up Workspace VPC
+  ec2_vpc_net:
+    state: present
+    cidr_block: "{{ virtue_workspaces_vpc_cidr_block }}"
+    region: "{{ virtue_aws_region }}"
+    name: "VirtueWorkspace_VPC"
+  register: workspaces_vpc
+  until: workspaces_vpc.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+
+      
+- name: Debug
+  debug: msg={{workspaces_vpc}}
+
+- name: Set VPC Id in facts
+  set_fact:
+    vpc_id: "{{ workspaces_vpc.vpc.id }}"
+
+- name: Create Workspace subnet
+  ec2_vpc_subnet:
+    state: present
+    region: "{{ virtue_aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ virtue_workspaces_cidr_block }}"
+    az: "{{ virtue_aws_region }}a"
+    purge_tags: false
+    resource_tags:
+      Name: "VirtueWorkspace Subnet 1"
+  register: workspaces_subnet
+  until: workspaces_subnet.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+  
+- name: Register Subnet Variable
+  set_fact:
+    workspaces_subnet_id: "{{ workspaces_subnet.subnet.id }}"
+
+- name: Create Workspace subnet 2
+  ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    cidr: "{{ virtue_workspaces_cidr_block_2 }}"
+    az: "{{ virtue_aws_region }}b"
+    purge_tags: false
+    resource_tags:
+      Name: "VirtueWorkspace Subnet 2"
+  register: workspaces_subnet_2
+  until: workspaces_subnet.failed == false
+  retries: 10
+  delay: 1
+  ignore_errors: yes
+  
+- name: Register Subnet Variable 2
+  set_fact:
+    workspaces_subnet_id_2: "{{ workspaces_subnet_2.subnet.id }}"
+
+- name: Create Internet Gateway for VPC
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    state: present
+  register: vpc_igw
+  until: vpc_igw.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Find Internet gateway, since the last thing probably failed in APL acct
+  ec2_vpc_igw_facts:
+    region: "{{ virtue_aws_region }}"
+    filters: 
+      "attachment.vpc-id": "{{vpc_id}}"
+  register: vpc_igw
+
+- name: Register Internet Gateway ID
+  set_fact:
+    igw_id: "{{ vpc_igw.internet_gateways.0.internet_gateway_id }}"
+  ignore_errors: yes
+
+  
+- name: Register Internet Gateway ID
+  set_fact:
+    igw_id: "{{ vpc_igw.gateway_id }}"
+  ignore_errors: yes
+    
+- name: Setup necessary route table
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    purge_subnets: no
+    purge_routes: no
+
+    tags:
+      Name: VirtueWorkspace_rt
+    subnets:
+      - "{{ workspaces_subnet_id }}"
+      - "{{ workspaces_subnet_id_2 }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_id }}"
+
+- name: Setup workspaces security group
+  ec2_group:
+    name: "VirtueWorkspace_sg"
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    description: VirtueWorkspace Security Group
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow all SSH traffic
+

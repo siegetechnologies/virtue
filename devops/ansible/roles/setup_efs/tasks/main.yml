@@ -1,0 +1,9 @@
+---
+
+- name: Run efs setup script
+  command: ~/create_efs.sh
+  environment:
+    AWS_CONFIG_FILE: /home/ubuntu/.aws/config
+    AWS_SHARED_CREDENTIALS_FILE: /home/ubuntu/.aws/credentials
+  register: efs_output
+  failed_when: efs_output.rc != 0 and 'already exists' not in efs_output.stderr

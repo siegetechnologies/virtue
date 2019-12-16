@@ -1,0 +1,127 @@
+{
+	"kind": "List",
+		"apiVersion": "v1",
+		"items": [
+		{
+			"kind": "Deployment",
+			"apiVersion": "apps/v1beta1",
+			"metadata": {
+				"name": "__VNAME",
+				"annotations": {
+					"virtue/userID": "__USER",
+					"virtue/virtueID": "__VNAME",
+					"virtue/roleID": "__ROLE",
+					"virtue/applications": "__APPS",
+					"virtue/transducerIDs": "[\"TODO\"]",
+					"virtue/resourceIDs": "[\"TODO\"]",
+					"virtue/state": "TODO",
+                    "virtue/ostype": "windows"
+				},
+				"creationTimestamp": null,
+				"labels": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				}
+			},
+			"spec":{
+				"replicas": 1,
+				"selector": {
+					"matchLabels": {
+						"userID": "__USER",
+						"roleID": "__ROLE",
+						"name": "__VNAME",
+						"virtue": "ViRtUe"
+					}
+				},
+				"template":{
+					"metadata": {
+						"creationTimestamp": null,
+						"labels": {
+							"userID": "__USER",
+							"roleID": "__ROLE",
+							"name": "__VNAME",
+							"virtue": "ViRtUe"
+						},
+						"annotations": {
+							"kubernetes.io/target-runtime": "virtlet.cloud",
+							"VirtletVCPUCount": "__CPUCOUNT",
+							"VirtletDiskDriver":"virtio",
+							"VirtletCloudInitImageType": "configdrive",
+							"VirtletCloudInitUserDataScript": "__USERDRIVE"
+						}
+					},
+					"spec":{
+						"dnsPolicy": "None",
+						"dnsConfig": {
+							"nameservers": ["10.2.1.135", "10.2.2.244"]
+						},
+						"nodeSelector": {
+							"extraRuntime": "virtlet"
+						},
+						"terminationGracePeriodSeconds": 120,
+						"containers":[
+						{
+							"name": "__VNAME",
+							"image": "virtlet.cloud/s3.amazonaws.com/windows-vm-img/win2016-comp.qcow2",
+							"imagePullPolicy": "IfNotPresent",
+							"ports": [
+							{
+								"containerPort": 3389,
+								"protocol": "TCP"
+							}
+							],
+							"readinessProbe": {
+								"tcpSocket":{
+									"port":3389,
+									"initialDelaySeconds":10,
+									"periodSeconds":10
+								}
+							},
+							"resources": {
+								"limits":{
+									"memory": "__RAMSIZE"
+								}
+							}
+						}
+						]
+					}
+				}
+			}
+		},
+		{
+			"kind": "Service",
+			"apiVersion": "v1",
+			"metadata": {
+				"name": "__VNAME",
+				"creationTimestamp": null,
+				"labels": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				}
+			},
+			"spec": {
+				"ports": [
+				{
+					"name": "virtuerrdp",
+					"protocol": "TCP",
+					"port": 3389,
+					"targetPort": 3389
+				}
+				],
+				"selector": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				},
+				"type": "NodePort",
+				"sessionAffinity": "None",
+				"externalTrafficPolicy": "Cluster"
+			}
+		}
+	]
+}

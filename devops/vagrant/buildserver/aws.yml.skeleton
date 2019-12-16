@@ -1,0 +1,7 @@
+---
+access_key_id: AWSACCESSKEY
+secret_access_key: AWSSECRETACCESSKEY
+keypair_name: E2KEYPAIRNAME
+region: E2REGION
+
+        

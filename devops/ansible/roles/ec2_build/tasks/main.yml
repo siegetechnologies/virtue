@@ -1,0 +1,78 @@
+
+---
+# Provisions the build server for virtue AMIs
+
+#temporarily usiong CC subnets and vpc
+
+- name: Update ec2 keypair
+  ec2_key:
+    force: yes #force overwrite already existing keypair
+    name: "{{ ec2_config.keypair_name }}"
+    state: present
+    key_material: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+- name: gather subnet
+  ec2_vpc_subnet_facts:
+    region: "{{ virtue_aws_region }}"
+  register: subnets
+
+- debug:
+    msg: "yeeter {{ subnets }}"
+
+
+- name: Find the VirtueCC_VPC vpcid
+  ec2_vpc_subnet_facts:
+    filters:
+      "tag:Name": VirtueCC Subnet 1
+  register: virtue_vpc_subnet
+
+- debug:
+    msg: "subnet {{ virtue_vpc_subnet }}"
+
+- name: Create MavenNode security group
+  ec2_group:
+    name: "MavenNode_sg"
+    description: "Security group for maven nodes"
+    region: "{{virtue_aws_region }}"
+    vpc_id: "{{ virtue_vpc_subnet.subnets.0.vpc_id }}"
+    rules:
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: 0.0.0.0/0
+  register: security_group
+
+- name: Create EC2 instance
+  ec2:
+    region: "{{ virtue_aws_region }}"
+    keypair: "{{ ec2_config.keypair_name }}"
+    instance_type: "{{ ec2_config.instance_type }}"
+    image: "{{ ec2_config.image }}"
+    group_id: "{{ security_group.group_id }}"
+    assign_public_ip: yes
+    vpc_subnet_id: "{{ virtue_vpc_subnet.subnets.0.id }}"
+    wait: yes
+    exact_count: 1
+    count_tag:
+      Name: VirtueBuild
+    instance_tags:
+      Name: VirtueBuild
+  register: ec2
+
+- name: Debug instances
+  debug: msg="{{ ec2 }}"
+
+- name: Add cc instance to host group
+  add_host: hostname={{ item.public_ip }} groupname=virtuebuild
+  with_items: '{{ ec2.tagged_instances }}'
+
+- name: Wait for SSH to come up
+  wait_for:
+    host: '{{ item.public_dns_name }}'
+    state: started
+    port: 22
+    timeout: 300
+  with_items: '{{ ec2.tagged_instances }}'
+
+
+  

@@ -1,0 +1,22 @@
+//temporary? json database
+https://docs.python.org/2/library/json.html
+
+
+//kube through py
+https://github.com/kubernetes-client/python
+	//probably shouldnt use this
+https://github.com/4Catalyzer/pykubectl
+
+
+//Activedirectory py
+havent found a decent AD python thing yet?
+//ldap works, so we are probably going to use ldap
+
+
+
+//python http serving
+https://docs.python.org/3/library/http.server.html
+	// is single threaded, cannot handle multiple clients at once by default.
+https://blog.anvileight.com/posts/simple-python-http-server/#python-3-x-1
+
+https://gist.github.com/dergachev/7028596 // but maybe with TLS https://docs.python.org/3/library/ssl.html

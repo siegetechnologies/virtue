@@ -1,0 +1,42 @@
+---
+- name: Launch the temporary instance
+  hosts: localhost
+  user: ubuntu
+  connection: local
+  gather_facts: false
+  roles:
+    - vpc_cc
+    - ec2_build
+
+- name: Provision new image
+  hosts: virtuebuild
+  remote_user: ubuntu
+  gather_facts: false
+  become_user: root
+  become_method: sudo
+  roles:
+    - bootstrap
+    - common
+    - virtueenv
+    - radare2
+    - mangler
+
+- name: reboot and install maven
+  hosts: virtuebuild
+  remote_user: ubuntu
+  gather_facts: false
+  become_user: root
+  become_method: sudo
+  roles:
+    - reboot_it
+    - common
+    - maven_modules
+    - maven_userspace
+    - fluentd
+
+- name: Generate AMI from new image
+  hosts: localhost
+  user: ubuntu
+  roles:
+    - amigen
+

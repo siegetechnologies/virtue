@@ -1,0 +1,54 @@
+- name: Pause and wait for ad to have ips. This may be a hack
+  pause:
+    minutes: 1
+
+- name: Get information about aws directories
+  command: aws ds describe-directories
+  register: aws_dirs
+
+- name: Filter output using debug (this is a hack, do not delete)
+  debug:
+    msg: "{{ aws_dirs.stdout | from_json | json_query( query ) }}"
+  vars:
+    query: "DirectoryDescriptions[?Name=='{{virtue_domain}}'] | [0]"
+  register: ds_info
+ 
+
+- name: AD Connector Block
+  block:
+  - set_fact:
+      vpc_id: "{{ ds_info.msg.ConnectSettings.VpcId}}"
+  - ec2_vpc_dhcp_options:
+      domain_name: "{{ virtue_domain }}"
+      region: "{{ virtue_aws_region }}"
+      dns_servers: "{{ ds_info.msg.ConnectSettings.ConnectIps }}"
+      vpc_id: "{{ vpc_id }}"
+    register: dhcp_conn_opts
+  - set_fact:
+      dhcp_opts: "{{ dhcp_conn_opts }}"
+  when: ds_info.msg.Type == "ADConnector"
+
+- name: SimpleAD Block
+  block:
+  - set_fact:
+      vpc_id: "{{ ds_info.msg.VpcSettings.VpcId}}"
+  - ec2_vpc_dhcp_options:
+      domain_name: "{{ virtue_domain }}"
+      region: "{{ virtue_aws_region }}"
+      dns_servers: "{{ ds_info.msg.DnsIpAddrs }}"
+      vpc_id: "{{ vpc_id }}"
+    register: dhcp_simp_opts
+  - set_fact:
+      dhcp_opts: "{{ dhcp_simp_opts }}"
+  when: ds_info.msg.Type == "SimpleAD"
+
+- name: create the ssm document config
+  template:
+    dest: ssm_ds_template.json
+    src: ssm_ds_template.json
+  register: ssm_out
+  ignore_errors: yes
+
+- name: Run the ssm document, consequences be damned
+  command: "aws ssm create-document --content file://{{ssm_out.dest}} --name awsconfig_Domain_{{ds_info.msg.DirectoryId}}_{{virtue_domain}}"
+  ignore_errors: yes

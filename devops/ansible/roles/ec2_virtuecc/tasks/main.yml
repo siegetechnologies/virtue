@@ -1,0 +1,116 @@
+
+---
+# Provisions the command and control server for virtue
+
+- name: Find the VirtueCC_VPC subnet
+  ec2_vpc_subnet_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": VirtueCC Subnet 1
+  register: virtue_vpc_subnet
+
+- name: Set some facts about the subnet
+  set_fact:
+    vpc_id: "{{ virtue_vpc_subnet.subnets.0.vpc_id }}"
+    subnet_id: "{{ virtue_vpc_subnet.subnets.0.subnet_id }}"
+
+- name: Setup virtuecc security group
+  ec2_group:
+    name: "{{ ec2_config.group }}"
+    vpc_id: "{{ vpc_id }}"
+    region: "{{virtue_aws_region}}"
+    description: VirtueCC Security Group
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow all SSH traffic
+      - proto: tcp
+        ports:
+          - 5170
+        cidr_ip: 10.0.0.0/8
+        rule_desc: fluentd in_forward from anywhere in our system
+      - proto: tcp
+        ports:
+          - 24224
+        cidr_ip: 10.0.0.0/8
+        rule_desc: fluentd secure_forward from anywhere in our system
+      - proto: tcp
+        ports:
+          - 4443
+        cidr_ip: 10.0.0.0/8
+        rule_desc: REST server listening port (cloud only)
+
+- name: Update ec2 keypair
+  ec2_key:
+    force: yes #force overwrite already existing keypair
+    region: "{{ virtue_aws_region }}"
+    name: "{{ ec2_config.keypair_name }}"
+    state: present
+    key_material: "{{ lookup('file', '/home/ubuntu/.ssh/id_rsa.pub') }}"
+
+
+- name: Create C&C instance
+  ec2:
+    region: "{{ virtue_aws_region }}"
+    keypair: "{{ ec2_config.keypair_name }}"
+    instance_type: "{{ ec2_config.instance_type }}"
+    image: "{{ ec2_config.image }}"
+    vpc_subnet_id: "{{ subnet_id }}"
+    group: "{{ ec2_config.group }}"
+    #assign_public_ip: "{{ ec2_config.assign_public_ip }}"
+    assign_public_ip: yes
+    private_ip: 10.1.1.100
+    wait: yes
+    exact_count: 1
+    count_tag:
+      Name: VirtueCC
+    instance_tags:
+      Name: VirtueCC
+    volumes:
+    - device_name: /dev/sda1
+      delete_on_termination: True
+      volume_size: 100
+
+  register: ec2_cc
+
+- name: Add cc instance to host group
+  add_host: hostname={{ item.public_ip }} groupname=virtuecc
+  with_items: '{{ ec2_cc.tagged_instances }}'
+
+#
+- name: Wait for SSH to come up
+  wait_for:
+    host: '{{ item.public_dns_name }}'
+    state: started
+    port: 22
+    timeout: 300
+  with_items: '{{ ec2_cc.tagged_instances }}'
+
+- name: Find premade cluster vpc
+  ec2_vpc_net_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": VirtueCC_VPC
+  register: virtue_cc_vpc
+
+- name: Set cluster VPC in facts
+  set_fact:
+    #maven_ami: "{{ maven_images.images[0].image_id }}"
+    cc_vpc: "{{ virtue_cc_vpc.vpcs.0.vpc_id }}"
+
+- name: Create s3 bucket for cluster
+  s3_bucket:
+    name: "{{ virtue_cluster_name }}"
+    state: present
+    versioning: true
+
+- name: Create route 53 hosted zone
+  route53_zone:
+    state: present
+    zone: "{{ virtue_cluster_name }}"
+    vpc_id: "{{ vpc_id }}"
+    vpc_region: "{{ virtue_aws_region }}"
+
+

@@ -1,0 +1,13 @@
+#!/bin/bash
+#essentially changes to PS output
+#including amount of ram used
+VIRTUEID="VIRTUECC"
+while : ; do
+	NEW_PS_PRE=$(bash -c 'echo $BASHPID; exec ps -ax -o pid,user,comm,vsz,args')
+	PSPID=$(echo "${NEW_PS_PRE}" | head -n1)	#gross, but works
+	NEW_PS=$(echo "${NEW_PS_PRE}" | grep -v "${PSPID}")
+#	NEW_PS=$(bash -c 'pgrep --list-full -P $BASHPID -v')	#less gross, but doesnt show as much
+	printf "%s\n%s" "${NEW_PS}" "${PREV_PS}" | sort | uniq -u | while read x; do printf "%s\t%s\n" "${VIRTUEID}" "${x}"; done
+	PREV_PS="${NEW_PS}"
+	sleep 1
+done

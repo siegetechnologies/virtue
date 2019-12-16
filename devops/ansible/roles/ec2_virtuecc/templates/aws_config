@@ -1,0 +1,3 @@
+[default]
+region = {{virtue_aws_region}}
+output = json

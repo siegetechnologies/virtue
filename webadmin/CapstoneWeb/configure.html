@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+<!-- jQuery library -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<!-- Required meta tags -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+
+<!-- Bootstrap CSS -->
+<!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">-->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<title>Virtue Admin</title>
+<script>$(document).ready(function() {
+  $(window).keydown(function(event){
+    if(event.keyCode == 13) {
+      event.preventDefault();
+      return false;
+    }
+  });
+});</script>
+
+</head>
+<body class="bg-light">
+<input id="mode" type="text" class="d-none" disabled>
+<input id="page" type="number" class="d-none" disabled>
+<nav class = "navbar text-light bg-dark pb-0 navbar-fixed-top">
+  <div class="container"> 
+    <!-- Header -->
+    <div class="navbar-header">
+      <div class="navbar-brand">Virtue Admin Assistant</div>
+    </div>
+    
+    <!-- Large Nav -->
+    <ul class="nav nav-tabs nav-fill">
+      <li class="nav-item ml-1"> <a class="nav-link bg-light text-dark" href="#">Configure</a> </li>
+<!--      <li class="nav-item ml-1"> <a class="nav-link bg-secondary text-light" href="#">System Log</a> </li>
+      <li class="nav-item ml-1"> <a class="nav-link bg-secondary text-light" href="#">Settings</a> </li>-->
+    </ul>
+  </div>
+  <div id="uname"></div>
+  <button type="button" onClick="logout()" class="btn btn-default btn-sm"> <i class="fas fa-sign-out-alt"></i> Log out </button>
+</nav>
+<div class="container-fluid mt-4 col-xs-12">
+  <div class="nav btn-group col-xs-12 justify-content-center nav-fill" role="group" aria-label="...">
+    <button name="virtuebtn" id="virtuebtn" class="nav-item btn border btn-default btn-primary" onClick="setVirtue()" value="Virtues">Virtues</button>
+    <button name="userbtn" id="userbtn" class="nav-item border btn btn-default" onClick="setUser()" value="Users">Users</button>
+    <button name="rolebtn" id="rolebtn" class="nav-item border btn btn-default" onClick="setRole()" value="Roles">Roles</button>
+    <button  type="button" name="appbtn" id="appbtn" class="nav-item border btn btn-default" onClick="setApp()" value="Apps">Applications</button>
+  </div>
+</div>
+<div class="card p-2 m-2">
+  <div class="card-header container-fluid">
+    <form class="form-inline">
+      <div class="form-group ">
+        <select type="button" id="MenuLaunch" class="bg-primary text-light mr-sm-1" aria-label="Text input with dropdown button"  >
+          <option class="d-none" selected>Launch</option>
+          <option value="details">Details</option>
+          <option value="restart">Restart</option>
+          <option value="stop">Stop</option>
+          <option value="delete">Delete</option>
+        </select>
+      </div>
+      <div class="form-group mx-sm-2">
+        <select type="button" id="MenuAction" class="bg-inactive  text-dark mr-sm-2 disabled" aria-label="Text input with dropdown button" disabled>
+          <option class="d-none" selected>Action</option>
+          <option value="details">Details</option>
+          <option value="restart">Restart</option>
+          <option value="stop">Stop</option>
+          <option value="delete">Delete</option>
+        </select>
+      </div>
+      <div class="form-group mx-sm-1">
+        <label for="numResults">Results:</label>
+      </div>
+      <div class="form-group mx-sm-1">
+        <select type="text" id="numResults" class="custom-select mr-sm-2" placeholder="Command..." aria-label="Text input with dropdown button">
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="ALL">ALL</option>
+        </select>
+      </div>
+      <div class="form-group mx-sm-3 ">
+        <button class="nav-item btn btn-light btn-outline-dark ml-1 col-xs-6" type="button" onClick="refresh()"><i class="fas fa-sync-alt" ></i> Refresh</button>
+      </div>
+      <div class="form-group ml-auto">
+       <!-- <button class="input-group-text p-2" type="button" data-toggle="collapse" data-target="#filterColapse" aria-expanded="true" aria-controls="filterColapse"> <i class="fas fa-filter"></i> </button>-->
+        <div class="input-group ml-1">
+          <div class="input-group-prepend"> <span class="input-group-text" id="basic-addon1"><i class="fas fa-search border-right-0"></i> </span> </div>
+          <input type="text" class="form-control" placeholder="Search" name="Filter" id="filter" aria-label="filter" aria-describedby="basic-addon1">
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="card-body">
+  <!--  <div class="collapse" id="filterColapse"> </div>-->
+    <div id="data"> 
+	  <table><thead><tr><th class="header"></th></tr></thead><tbody><tr></tr></tbody></table></div>
+  </div>
+  <div  id="pagi" class="card-footer d-none"> </div>
+</div>
+<div id="inputModal"  class="modal fade" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div id="inputModalContents" class="modal-body p-0">
+			
+		</div>
+    </div>
+  </div>
+</div>
+	
+	
+		
+<script type="text/javascript" src="js/includes.js"></script>
+<script type="text/javascript" src="js/Logout.js"></script>
+<script type="text/javascript" src="js/pagination.js"></script>
+<script type="text/javascript" src="js/Modals.js"></script>
+<script type="text/javascript" src="js/create.js"></script>
+<script type="text/javascript" src="js/forms.js"></script>
+<script type="text/javascript" src="js/details.js"></script>
+<script type="text/javascript" src="js/SortTable.js"></script>
+<script type="text/javascript" src="js/Filter.js"></script>
+<!-- Optional JavaScript --> 
+
+<!-- jQuery first, then Popper.js, then Bootstrap JS --> 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script> 
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+</body>
+</html>

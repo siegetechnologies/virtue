@@ -1,0 +1,15 @@
+---
+# This file contains test machine specific provisioning tasks
+
+# Docker is necessary to run virtues in the test environment
+#- name: Install Docker
+#  package: name=docker.io state=latest
+#  become: yes
+
+
+- name: Install MAVEN userspace CLI
+  copy:
+    src: "{{ playbook_dir }}/../../MAVEN/os/linux/userspace/maven_us.py"
+    dest: ~/maven.py
+    mode: 0700
+

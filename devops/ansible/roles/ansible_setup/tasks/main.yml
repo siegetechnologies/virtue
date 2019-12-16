@@ -1,0 +1,59 @@
+---
+# Check to see if python2 is installed.  If not, install it.
+# the weird update twice and sleep thing is to (attempt to) prevent a weird error that would sometimes occour at this stage
+- name: Update apt
+  apt:
+    update_cache: yes
+    upgrade: yes
+    force_apt_get: yes
+    autoremove: yes
+  become: true
+  become_method: sudo
+  become_user: root
+  register: update
+
+- name: Install apt packages
+  apt:
+    name:
+    - awscli
+    - python3-pip
+    - python-boto3
+    - python-botocore
+    - python-boto
+    - docker.io
+    - jq
+    force_apt_get: yes
+    force: yes
+  become: true
+  become_method: sudo
+  become_user: root
+  register: apt
+
+- name: Install python packages through pip
+  pip:
+    executable: pip3
+    name:
+      pywinrm
+      botocore
+      boto
+      boto3
+      pyopenssl
+  become: true
+  become_method: sudo
+  become_user: root
+  register: pip
+
+#- name: Generate ssh key
+#  command : ssh-keygen -q -C "" -N ""
+#  args:
+#    creates: ~/.ssh/id_rsa
+
+
+#only in ansible 2.8
+#- name: SSH keygen if not exist
+#  openssh_keypair:
+#    path: ~/.ssh/id_rsa
+#  become: false
+#  register: update
+
+

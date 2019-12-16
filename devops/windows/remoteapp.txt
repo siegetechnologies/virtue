@@ -1,0 +1,49 @@
+
+Create directory with 1 workspace, let the workspace user be called user1
+Create a domain joined windows instance in the same VPC, this will be your
+virtue instance (VI)
+
+Login to VI using Domain admin password (the one you used when you created the
+directory service)
+Open Control Panel -> User Accounts -> Give others access to this computer
+Enter user1 for User Name, and the Directory common name in domain (in our case, SIEGE)
+Click Next
+Select the "other" radio button and open the dropdown to select "Remote Desktop Users"
+Click Next
+Verify the Domain user matches the workspace user and click "Finish"
+
+Verify this step by opening a remote desktop session from the Workspace to the 
+VI using the workspace user's credentials. You should see the whole desktop.
+Save the configuration to a .rdp file somewhere, you will use this later
+
+https://social.technet.microsoft.com/Forums/de-DE/84393b01-295e-4c4f-9477-b8b45a8e297b/how-to-setup-remoteapp-mode-for-some-application-in-windows-10-professional?forum=win10itprosetup
+If the following link is broken, here is a rundown of the steps
+Assume we want the remote user to be able to access C:\Windows\System32\calc.exe remotely
+
+Open regedit.exe on the VI, navigate to:
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList
+Navigate to fDisabledAllowList value in the right pane, set its value as "1".
+Add new key under TSAppAllowList, named Applications.
+Add new key under Applications, named "Calc" or whatever you want
+Create two new String Values for "Calc", named "Name" and "Path".
+"Name" is the human-readable name for the application, like "Calculator"
+"Path" is the path to the local copy of the executable, ex C:\Windows\System32\calc.exe
+Save and close
+
+Copy the rdp file from before, and change/add the following entries:
+remoteapplicationmode:i:1
+remoteapplicationprogram:s:Calculator
+
+Save the rdp file to desktop, and click it to launch the session.
+It may be necessary to enter user credentials, afterward, a
+seamless calc.exe window should appear
+
+Powershell scripting:
+Test-Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Terminal Server\TSAppAllowList" should be true
+See reg_setup.ps1
+
+Allowing a user to access the instance
+NET LOCALGROUP "Remote Desktop Users" /ADD "<user>"
+https://www.reddit.com/r/PowerShell/comments/2ovxzi/add_user_to_remote_desktop_users_on_remote_pc_for/
+
+

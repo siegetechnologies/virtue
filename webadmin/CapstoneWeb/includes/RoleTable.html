@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Required meta tags -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<title>Virtue Admin</title>
+</head>
+
+<body>
+<includescripts> 
+  <script>
+						$(document).ready(function(){ 
+		});
+				</script> 
+</includescripts>
+<div id="Configure" class="marginTop">
+  <menuLaunch>
+    <option class="d-none" value="0" selected>Launch</option>
+    <option value="CreateRole">Create</option>
+    <option value="import">Import</option>
+  </menuLaunch>
+  <menuAction>
+    <option class="d-none" value="0" selected>Action</option>
+    <option value="DetailsRole">Details</option>
+    <option value="delete">Delete</option>
+  </menuAction>
+  <filter>
+  <ul class="list-inline-item align-top">
+    <li class="list-group-item bg-light">Permissions</li>
+    <li class="list-group-item">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="" id="adminCheck1">
+        <label class="form-check-label" for="adminCheck1"> Admin </label>
+      </div>
+    </li>
+    <li class="list-group-item">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="" id="userCheck1">
+        <label class="form-check-label" for="userCheck1"> User </label>
+      </div>
+    </li>
+  </ul>
+</div>
+</div>
+</filter>
+<mtable>
+  <table class="table table-striped table-hover table-bordered">
+    <thead>
+      <tr>
+        <th class="text-center checkColumn header" style="cursor: pointer"><i class="fas fa-check-square"> <i class="fas fa-caret-down"></i></th>
+        <th class="text-center header"  style="cursor: pointer"><i class="fas fa-hashtag"></th>
+        <th class="text-center header" style="cursor: pointer">Role <i class="fas fa-caret-down"></i></th>
+       <!-- <th class="text-center header" style="cursor: pointer">Repo <i class="fas fa-caret-down"></i></th>-->
+        <th class="text-center header" style="cursor: pointer">Status <i class="fas fa-caret-down"></i></th>
+        <th class="text-center header" style="cursor: pointer">Mounts <i class="fas fa-caret-down"></i></th>
+        <th class="text-center header" style="cursor: pointer">Virtlet <i class="fas fa-caret-down"></i></th>
+        <th class="text-center header" style="cursor: pointer">Ram <i class="fas fa-caret-down"></i></th>
+        <th class="text-center header" style="cursor: pointer">CPUs <i class="fas fa-caret-down"></i></th>
+        <th class="text-center header" style="cursor: pointer">Type <i class="fas fa-caret-down"></i></th>
+      </tr>
+    </thead>
+    <tbody id="infoTable">
+    </tbody>
+  </table>
+</mtable>
+<table class="table table-striped table-hover table-bordered">
+  <thead>
+    <tr>
+      <th class="text-center checkColumn"><i class="fas fa-check-square"></i></th>
+      <th class="text-center"><i class="fas fa-hashtag"></i></th>
+      <th class="text-center">Role <i class="fas fa-caret-down"></i></th>
+      <!--<th class="text-center">Repo <i class="fas fa-caret-down"></i></th>-->
+      <th class="text-center">Status <i class="fas fa-caret-down"></i></th>
+      <th class="text-center">Mounts <i class="fas fa-caret-down"></i></th>
+      <th class="text-center">Virtlet <i class="fas fa-caret-down"></i></th>
+      <th class="text-center">Ram <i class="fas fa-caret-down"></i></th>
+      <th class="text-center">CPUs <i class="fas fa-caret-down"></i></th>
+      <th class="text-center">Type <i class="fas fa-caret-down"></i></th>
+    </tr>
+  </thead>
+  <tbody id="infoable">
+    <looper>
+      <tr id="null">
+        <td class="text-center checkColumn"><input type="checkbox"></td>
+        <td class="text-center"></td>
+        <td class="text-center"></td>
+        <!--<td class="text-center"></td>-->
+        <td class="text-center"></td>
+        <td class="text-center"></td>
+        <td class="text-center"></td>
+        <td class="text-center"></td>
+        <td class="text-center"></td>
+        <td class="text-center"></td>
+      </tr>
+    </looper>
+  </tbody>
+</table>
+</div>
+<!-- Optional JavaScript --> 
+<!-- jQuery first, then Popper.js, then Bootstrap JS --> 
+<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script> 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script> 
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+</body>
+</html>

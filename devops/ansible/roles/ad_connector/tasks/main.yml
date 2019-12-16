@@ -1,0 +1,38 @@
+---
+# Stand up the VPC for the Virtue Workspaces
+- name: Get workspaces VPC info
+  ec2_vpc_net_facts:
+    filters:
+      "tag:Name": "VirtueWorkspace_VPC"
+  register: workspaces_vpc
+
+- name: Get workspaces subnet info
+  ec2_vpc_subnet_facts:
+    filters:
+      "tag:Name": "VirtueWorkspace Subnet 1"
+  register: workspaces_subnet_1
+
+- name: Get workspaces subnet info
+  ec2_vpc_subnet_facts:
+    filters:
+      "tag:Name": "VirtueWorkspace Subnet 2"
+  register: workspaces_subnet_2
+
+- name: Set ids in facts
+  set_fact:
+    vpc_id: "{{ workspaces_vpc.vpcs.0.vpc_id }}"
+    subnet_1_id: "{{ workspaces_subnet_1.subnets.0.subnet_id }}"
+    subnet_2_id: "{{ workspaces_subnet_2.subnets.0.subnet_id }}"
+
+- name: Get information about aws directories
+  command: aws ds describe-directories
+  register: aws_dirs
+
+- name: Create directory if it does not exist
+  command: aws ds connect-directory --name {{virtue_domain}} --short-name siege-DC01 --password "{{ ad_password }}" --size Small --description "Here goes nothing" --connect-settings '{"VpcId":"{{ vpc_id }}","SubnetIds":["{{subnet_1_id}}","{{subnet_2_id}}"],"CustomerDnsIps":["192.168.4.4"],"CustomerUserName":"{{ ad_username }}"}'
+  when: (dirs == [])
+  vars:
+    query: "DirectoryDescriptions[?Name=='{{virtue_domain}}'][DirectoryId]"
+    dirs: "{{ aws_dirs.stdout | from_json | json_query( query ) }}"
+  failed_when: ds_create_output.rc != 0
+  register: ds_create_output

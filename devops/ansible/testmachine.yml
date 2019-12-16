@@ -1,0 +1,13 @@
+---
+- name: Test Machine Setup
+  hosts: testmachines
+  become_user: root
+  become_method: sudo
+  gather_facts: false
+  remote_user: ubuntu
+  roles:
+    - bootstrap
+    - common
+    - virtueenv
+    - testmachine
+    - fluentd

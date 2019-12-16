@@ -1,0 +1,249 @@
+{
+	"kind": "List",
+		"apiVersion": "v1",
+		"metadata": {
+		},
+		"items": [
+		{
+			"kind": "ConfigMap",
+			"apiVersion": "v1",
+			"metadata": {
+				"name": "__VNAME",
+				"annotations": {
+					"virtue/userID": "__USER",
+					"virtue/virtueID": "__VNAME",
+					"virtue/roleID": "__ROLE"
+				},
+				"labels": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				}
+			},
+			"spec": {
+				"selector": {
+					"matchLabels": {
+						"userID": "__USER",
+						"roleID": "__ROLE",
+						"name": "__VNAME",
+						"virtue": "ViRtUe"
+					}
+				}
+			},
+			"data": {
+				"authorized_keys": "__KEY"
+			}
+
+		},
+		{
+			"kind": "Deployment",
+			"apiVersion": "apps/v1beta1",
+			"metadata": {
+				"name": "__VNAME",
+				"annotations": {
+					"virtue/userID": "__USER",
+					"virtue/virtueID": "__VNAME",
+					"virtue/roleID": "__ROLE",
+					"virtue/applications": "__APPS",
+					"virtue/transducerIDs": "[\"TODO\"]",
+					"virtue/resourceIDs": "[\"TODO\"]",
+					"virtue/state": "TODO"
+				},
+				"creationTimestamp": null,
+				"labels": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				}
+			},
+			"spec": {
+				"replicas": 1,
+				"selector": {
+					"matchLabels": {
+						"userID": "__USER",
+						"roleID": "__ROLE",
+						"name": "__VNAME",
+						"virtue": "ViRtUe"
+					}
+				},
+				"template": {
+					"metadata": {
+						"creationTimestamp": null,
+						"labels": {
+							"userID": "__USER",
+							"roleID": "__ROLE",
+							"name": "__VNAME",
+							"virtue": "ViRtUe"
+						},
+						"annotations": {
+							"container.apparmor.security.beta.kubernetes.io/__VNAME": "__APPARMOR"
+						}
+					},
+					"spec": {
+						"revisionHistoryLimit": 0,
+						"volumes": [
+							{
+								"name": "u__SANIURD-urd-volume",
+								"persistentVolumeClaim": {
+									"claimName": "u__SANIURD-urd-volume"
+								}
+							},
+							{
+								"name": "u__SANIUSER-data-volume",
+								"persistentVolumeClaim": {
+									"claimName": "u__SANIUSER-data-volume"
+								}
+							},
+							{
+								"name": "u__VNAME-cfg-volume",
+								"configMap": {
+									"name": "__VNAME",
+									"items": [
+										{
+											"key": "authorized_keys",
+											"path": "authorized_keys"
+										}
+									]
+								},
+								"defaultMode": 420
+							}
+						],
+						"spec": {
+							"securityContext": {
+								"fsGroup":1000
+							}
+						},
+						"containers": [
+						{
+							"name": "__VNAME",
+							"image": "__REGISTRY/__REPO:latest",
+							"ports": [
+							{
+								"containerPort": 22,
+								"protocol": "TCP"
+							}
+							],
+							"resources": {},
+							"volumeMounts": [
+							{
+								"name": "u__SANIURD-urd-volume",
+								"mountPath": "/home/docker"
+							},
+							{
+								"name": "u__SANIUSER-data-volume",
+								"mountPath": "/home/docker/data"
+							},
+							{
+								"name": "u__VNAME-cfg-volume",
+								"mountPath": "/home/docker/.virtue"
+							}
+							],
+							"env": [
+							{
+								"name": "VIRTUE_AUTH_SSH",
+								"value": "__KEY"
+							},
+							{
+								"name": "VIRTUE_USER_AUTH_KEY",
+								"value": "__STORAGEUSERKEY"
+							},
+							{
+								"name": "VIRTUE_USER_AUTH_NAME",
+								"value": "__SANIEFSUSER"
+							},
+							{
+								"name": "VIRTUE_PERSISTENT_AUTH_NAME",
+								"value": "__SANIEFSURD"
+							},
+							{
+								"name": "VIRTUE_PERSISTENT_AUTH_KEY",
+								"value": "__STORAGEPERSISTENTKEY"
+							},
+							{
+								"name": "VIRTUEID",
+								"value": "__VNAME"
+							},
+							{
+								"name": "YEETMAN",
+								"value": "Easteregg"
+							}
+							],
+							"terminationMessagePath": "/dev/termination-log",
+							"terminationMessagePolicy": "File",
+							"__imagePullPolicy": "IfNotPresent",
+							"imagePullPolicy": "Always"
+						}
+						],
+						"restartPolicy": "Always",
+						"terminationGracePeriodSeconds": 30,
+						"dnsPolicy": "ClusterFirst",
+						"securityContext": {},
+						"schedulerName": "default-scheduler",
+						"tolerations": [
+						{
+							"key": "isolation",
+							"operator": "Equal",
+							"value": "__ISOLATION",
+							"effect": "NoSchedule"
+						},
+						{
+							"key": "isolation",
+							"operator": "Equal",
+							"value": "__ISOLATION",
+							"effect": "NoExecute"
+						}
+						]
+					}
+				},
+				"strategy": {
+					"type": "RollingUpdate",
+					"rollingUpdate": {
+						"maxUnavailable": 1,
+						"maxSurge": 1
+					}
+				},
+				"revisionHistoryLimit": 2,
+				"progressDeadlineSeconds": 600
+			},
+			"status": {}
+		},
+		{
+			"kind": "Service",
+			"apiVersion": "v1",
+			"metadata": {
+				"name": "__VNAME",
+				"creationTimestamp": null,
+				"labels": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				}
+			},
+			"spec": {
+				"ports": [
+				{
+					"name": "virtuessh",
+					"protocol": "TCP",
+					"port": 22,
+					"targetPort": 22
+				}
+				],
+				"selector": {
+					"userID": "__USER",
+					"roleID": "__ROLE",
+					"name": "__VNAME",
+					"virtue": "ViRtUe"
+				},
+				"type": "NodePort",
+				"sessionAffinity": "None",
+				"externalTrafficPolicy": "Cluster"
+			},
+			"status": {
+				"loadBalancer": {}
+			}
+		}
+	]
+}

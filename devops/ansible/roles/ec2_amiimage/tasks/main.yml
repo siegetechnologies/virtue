@@ -1,0 +1,70 @@
+
+---
+# Provisions the command and control server for virtue
+
+- name: Find the cluster vpcid
+  ec2_vpc_subnet_facts:
+    filters:
+      "tag:Name": "*siege-virtuecluster.com"
+  register: cluster_subnets
+
+- name: Verify that there is a subnet
+  fail:
+    msg: "Subnet not found"
+  when: cluster_subnets.subnets == []
+
+# This is a terrible security group
+- name: Create MavenNode security group
+  ec2_group:
+    name: "MavenNode_sg"
+    description: "Security group for maven nodes"
+    region: "{{virtue_aws_region }}"
+    vpc_id: "{{ cluster_subnets.subnets[0].vpc_id }}"
+    rules:
+    - proto: tcp
+      from_port: 22
+      to_port: 22
+      cidr_ip: 0.0.0.0/0
+  register: security_group
+
+- name: Update ec2 keypair
+  ec2_key:
+    force: yes #force overwrite already existing keypair
+    name: "{{ ec2_config.keypair }}"
+    state: present
+    key_material: "{{ lookup('file', '/home/ubuntu/.ssh/id_rsa.pub') }}"
+
+- name: Create EC2 instance
+  ec2:
+    region: "{{virtue_aws_region }}"
+    keypair: "{{ ec2_config.keypair }}"
+    instance_type: "{{ ec2_config.instance_type }}"
+    image: "{{ ec2_config.image }}"
+    group: MavenNode_sg
+    vpc_subnet_id: "{{ cluster_subnets.subnets[0].subnet_id }}"
+    assign_public_ip: yes
+    keypair: "{{ ec2_config.keypair }}"
+    wait: yes
+    exact_count: 1
+    count_tag:
+      Name: MavenNode
+    instance_tags:
+      Name: MavenNode
+  register: ec2
+
+- name: Debug instances
+  debug: msg="{{ ec2 }}"
+
+- name: Add cc instance to host group
+  add_host: hostname={{ item.public_ip }} groupname=to_build
+  with_items: '{{ ec2.tagged_instances }}'
+
+- name: Wait for SSH to come up
+  wait_for:
+    host: "{{ item.public_dns_name }}"
+    state: started
+    port: 22
+    timeout: 300
+  with_items: '{{ ec2.tagged_instances }}'
+
+- setup:

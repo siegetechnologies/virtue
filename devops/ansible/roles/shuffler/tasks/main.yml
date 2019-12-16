@@ -1,0 +1,25 @@
+---
+
+- name: Transfer sources of mangler
+  copy:
+    src: "{{ playbook_dir }}/../../linux/userspace/elf-mangler/"
+    dest: "/home/ubuntu/elf-mangler/"
+
+- name: Compile mangler
+  command: 'make'
+  args:
+    chdir: '/home/ubuntu/elf-mangler/'
+  register: mangler_compile_output
+  failed_when: mangler_compile_output.rc != 0
+
+- debug: msg={{mangler_compile_output}}
+
+- name: Install mangler?
+  command: 'make install'
+  args:
+    chdir: '/home/ubuntu/elf-mangler/'
+  become: true
+  register: mangler_install_output
+#  failed_when: mangler_install_output.rc != 0
+
+- debug: msg={{mangler_install_output}}

@@ -1,0 +1,55 @@
+---
+# Stand up the VPC for Virtues Command and Control servers
+- hosts: localhost
+  user: ubuntu
+  connection: local
+  gather_facts: false
+  roles:
+    - ansible_setup
+    - vpc_workspace
+    - vpc_cc
+    - simple_ad # you should enable simple_ad xor ad_connector
+    #- ad_connector
+    - ad_dhcpopts
+    #- vpc_win
+    - vpc_wininworkspace #enable vpc_win xor vpc_wininworkspace
+    - ec2_virtuecc
+    - ec2_efsshim
+
+# Now run cluster creation
+- hosts: virtuecc
+  name: Standup cluster
+  remote_user: ubuntu
+  become_method: sudo
+  gather_facts: false
+  roles:
+    - bootstrap
+    - virtuecc
+    - cluster_create
+
+- hosts: efsshim
+  name: Setup efsshim
+  remote_user: ubuntu
+  become_method: sudo
+  gather_facts: false
+  roles:
+    - bootstrap
+    - efsshim
+
+- hosts: localhost
+  user: ubuntu
+  connection: local
+  gather_facts: false
+  roles:
+    - setup_vpc_routing
+
+
+- hosts: virtuecc
+  name: Finish provisioning kubernetes cluster
+  remote_user: ubuntu
+  become_method: sudo
+  gather_facts: false
+  roles:
+    - setup_efs
+    - fix_dns
+    - setup_virtlet

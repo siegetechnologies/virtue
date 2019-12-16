@@ -1,0 +1,17 @@
+---
+# Sets up a basic buildserver.  This installs all necessary
+# packages, does a full update and pulls down the code to build
+# the maven kernel modules.
+- name: Buildserver Setup
+  hosts: buildservers
+  become_user: root
+  become_method: sudo
+  gather_facts: false
+  remote_user: ubuntu
+  roles:
+     - bootstrap
+     - common
+     - virtueenv
+     - buildserver
+     - fluentd
+

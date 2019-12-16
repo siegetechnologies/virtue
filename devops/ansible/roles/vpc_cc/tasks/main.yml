@@ -1,0 +1,78 @@
+---
+# Stand up the VPC for the Virtue Command and Control services
+- name: Setting up CC VPC
+  ec2_vpc_net:
+    region: "{{ virtue_aws_region }}"
+    state: present
+    cidr_block: "{{ virtue_cc_vpc_cidr_block }}"
+    name: "VirtueCC_VPC"
+  register: virtuecc_vpc
+  until: virtuecc_vpc.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+
+- name: Debug
+  debug: msg={{virtuecc_vpc}}
+
+- name: Set VPC Id in facts
+  set_fact:
+    vpc_id: "{{ virtuecc_vpc.vpc.id }}"
+
+- name: Create C&C subnet
+  ec2_vpc_subnet:
+    region: "{{ virtue_aws_region }}"
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ virtue_cc_cidr_block }}"
+    az: "{{ virtue_aws_region }}a"
+    resource_tags:
+      Name: "VirtueCC Subnet 1"
+  register: virtuecc_subnet
+  until: virtuecc_subnet.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+  
+- name: Register Subnet Variable
+  set_fact:
+    virtuecc_subnet_id: "{{ virtuecc_subnet.subnet.id }}"
+
+- name: Create Internet Gateway for VPC
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    state: present
+  register: vpc_igw
+  until: vpc_igw.failed == false
+  retries: 3
+  delay: 1
+  ignore_errors: yes
+  
+- name: Register Internet Gateway ID
+  set_fact:
+    igw_id: "{{ vpc_igw.gateway_id }}"
+    
+- name: Setup necessary route table
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ virtue_aws_region }}"
+    tags:
+      Name: VirtueCC_rt
+    subnets:
+      - "{{ virtuecc_subnet_id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_id }}"
+
+- name: Create s3 buckets for different types of storage
+  s3_bucket:
+    name: "{{s3_bucket_prefix}}-{{item}}"
+    state: present
+    tags:
+      type: "{{item}}"
+    versioning: false
+  with_items:
+    - fluentd-logs
+#    - virtueimages
+    - virtuevms

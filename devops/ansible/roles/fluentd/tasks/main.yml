@@ -1,0 +1,52 @@
+---
+- name: Install the fluentd repository key
+  apt_key:
+    url: https://packages.treasuredata.com/GPG-KEY-td-agent
+    state: present
+  become: true
+
+- name: Add the fluentd repository
+  apt_repository:
+    repo: deb http://packages.treasuredata.com/3/ubuntu/xenial/ xenial contrib
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Install fluentd
+  package: name=td-agent state=latest
+  become: true
+
+- name: Install fluentd rubygems
+  become: true
+  gem:
+    name: "{{ item }}"
+    state: present
+    user_install: no
+  with_items:
+    - fluentd
+    - fluent-plugin-s3
+
+- name: Setup fluentd directory
+  become: true
+  shell: fluentd --setup /etc/fluent
+
+- block:
+  - name: Copy fluentd service
+    copy:
+      src: fluentd.service
+      dest: /etc/systemd/system
+    notify: restart fluentd
+
+  - name: Copy Maven Fluentd plugin
+    copy:
+      src: "{{ playbook_dir }}/../../linux/userspace/fluent-node/plugin/in_maven.rb"
+      dest: /etc/fluent/plugin
+    notify: restart fluentd
+
+  - name: Copy Maven Fluentd config
+    template:
+      src: fluent.conf
+      dest: /etc/fluent/fluent.conf
+    notify: restart fluentd
+  become: true
+      

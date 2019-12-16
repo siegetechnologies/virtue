@@ -1,0 +1,10 @@
+#!/bin/bash
+#appends virtueid to dmesg -w output
+VIRTUEID=""
+while [ -z "${VIRTUEID}" ] ; do
+	VIRTUEID=$(grep 'VIRTUEID' /mnt/virtueconf/user-data 2>/dev/null| cut -d '=' -f 2-)
+	sleep 1
+done
+
+## the concatentation
+dmesg -w | while read x; do printf "%s\t%s\n" "${VIRTUEID}" "${x}"; done

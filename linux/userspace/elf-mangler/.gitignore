@@ -1,0 +1,16 @@
+*.o.mod
+*.o.mod.mod
+*.o.mod.mod.mod
+*.o
+elf-parser
+elf-parser.selfhosting
+elf-mangler
+elf-mangler.selfhosting
+
+
+elftest/**/testsuite1
+elftest/**/testsuite2
+elftest/**/testsuite3
+
+elftest/**/*.bin
+vgcore.*

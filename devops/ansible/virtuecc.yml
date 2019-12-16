@@ -1,0 +1,19 @@
+# Create the Virtue C&C server
+- hosts: localhost
+  user: ubuntu
+  connection: local
+  gather_facts: false
+  roles:
+    - ec2_virtuecc
+
+# Now provision it as necessary
+- hosts: virtuecc
+  name: Virtue C&C server setup
+  remote_user: ubuntu
+  gather_facts: false
+  become_method: sudo
+  roles:
+    - bootstrap
+    - virtuecc
+    
+    

@@ -1,0 +1,85 @@
+
+---
+# Provisions the command and control server for virtue
+
+- name: Find the VirtueCC_VPC vpcid
+  ec2_vpc_subnet_facts:
+    region: "{{ virtue_aws_region }}"
+    filters:
+      "tag:Name": VirtueCC Subnet 1
+  register: virtue_vpc_subnet
+
+- name: Set some facts about the subnet
+  set_fact:
+    vpc_id: "{{ virtue_vpc_subnet.subnets.0.vpc_id }}"
+    subnet_id: "{{ virtue_vpc_subnet.subnets.0.subnet_id }}"
+
+- name: Setup efsshim security group
+  ec2_group:
+    name: "{{ ec2_config.group }}"
+    vpc_id: "{{ vpc_id }}"
+    region: "{{virtue_aws_region}}"
+    description: efshsim security group
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow all SSH traffic
+      - proto: tcp
+        ports:
+          - 2049
+        cidr_ip: 0.0.0.0/0
+        rule_desc: Allow NFS traffic
+      - proto: tcp
+        ports:
+          - 2222
+        cidr_ip: 10.0.0.0/8
+        rule_desc: Allow virtues to mount their drives
+  register: efsshim_sg
+
+- name: create efs
+  efs:
+    name: testefs
+    state: present
+    targets:
+      - subnet_id: "{{ subnet_id }}"
+        ip_address: 10.1.1.102
+        security_groups: [ "{{ efsshim_sg.group_id }}" ]
+
+
+- name: Create efsshim instance
+  ec2:
+    region: "{{ virtue_aws_region }}"
+    keypair: "{{ ec2_config.keypair_name }}"
+    instance_type: "{{ ec2_config.instance_type }}"
+    image: "{{ ec2_config.image }}"
+    vpc_subnet_id: "{{ subnet_id }}"
+    group: "{{ ec2_config.group }}"
+    #assign_public_ip: "{{ ec2_config.assign_public_ip }}"
+    assign_public_ip: yes
+    private_ip: 10.1.1.101
+    wait: yes
+    exact_count: 1
+    count_tag:
+      Name: efsshim
+    instance_tags:
+      Name: efsshim
+    volumes:
+    - device_name: /dev/sda1
+      delete_on_termination: True
+      volume_size: 100
+
+  register: ec2_efsshim
+
+- name: Add efsshim instance to host group
+  add_host: hostname={{ item.public_ip }} groupname=efsshim
+  with_items: '{{ ec2_efsshim.tagged_instances }}'
+
+- name: Wait for SSH to come up
+  wait_for:
+    host: '{{ item.public_dns_name }}'
+    state: started
+    port: 22
+    timeout: 300
+  with_items: '{{ ec2_efsshim.tagged_instances }}'

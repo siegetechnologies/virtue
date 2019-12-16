@@ -1,0 +1,251 @@
+#!/bin/sh
+# vim: set ts=4:
+#---help---
+# Usage: brunchable-image [options] [--] <image> [<script> [<script-opts...>]]
+#
+# Copies a virtuetar docker image into a qcow2 image. and then does some minor finalizers
+#
+# Arguments:
+#   <image>                               Path of disk image to use or create if not exists.
+#
+#   <script>                              Path of script to execute after installing base system in
+#                                         the mounted image and before umounting it.
+#
+#   <script-opts>                         Arguments to pass to the script.
+#
+# Options and Environment Variables:
+#   -C --no-cleanup (CLEANUP)             Don't umount and disconnect image when done.
+#
+#   -v --virtueimage VIRTUEIMAGE                Additional packages to install into the image.
+#
+#   -c --script-chroot (SCRIPT_CHROOT)    Bind <script>'s directory at /mnt inside image and chroot
+#                                         into the image before executing <script>.
+#   -f --image-format IMAGE_FORMAT
+#
+#   -h --help                             Show this help message and exit.
+#
+#   -v --version                          Print version and exit.
+#
+# Each option can be also provided by environment variable. If both option and
+# variable is specified and the option accepts only one argument, then the
+# option takes precedence.
+#
+# based on https://github.com/alpinelinux/alpine-make-vm-image
+#---help---
+set -eu
+PATH="$PATH:/bin/:/sbin/:/usr/bin/:/usr/sbin/"
+
+readonly PROGNAME='brunchable-image'
+readonly VERSION='0.1.0'
+
+
+# For compatibility with systems that does not have "realpath" command.
+if ! command -v realpath >/dev/null; then
+	alias realpath='readlink -f'
+fi
+
+die() {
+	printf '\033[1;31mERROR:\033[0m %s\n' "$@" >&2  # bold red
+	exit 1
+}
+
+einfo() {
+	printf '\n\033[1;36m> %s\033[0m\n' "$@" >&2  # bold cyan
+}
+
+# Prints help and exists with the specified status.
+help() {
+	sed -En '/^#---help---/,/^#---help---/p' "$0" | sed -E 's/^# ?//; 1d;$d;'
+	exit ${1:-0}
+}
+
+# Cleans the host system. This function is executed before exiting the script.
+cleanup() {
+	set +eu
+	trap '' EXIT HUP INT TERM  # unset trap to avoid loop
+
+	cd /
+	if [ -d "$temp_dir" ]; then
+		rm -Rf "$temp_dir"
+	fi
+	if [ "$mount_dir" ]; then
+		umount_recursively "$mount_dir" \
+			|| die "Failed to unmount $mount_dir; unmount it and disconnect $nbd_dev manually"
+		rm -Rf "$mount_dir"
+	fi
+	if [ "$nbd_dev" ]; then
+		qemu-nbd --disconnect "$nbd_dev" \
+			|| die "Failed to disconnect $nbd_dev; disconnect it manually"
+	fi
+}
+
+# Attaches the specified image as a NBD block device and prints its path.
+attach_image() {
+	local image="$1"
+	local format="${2:-}"
+	local nbd_dev
+
+	nbd_dev=$(get_available_nbd) || {
+		modprobe nbd max_part=0
+		sleep 1
+		nbd_dev=$(get_available_nbd)
+	} || die 'No available nbd device found!'
+
+	qemu-nbd --connect="$nbd_dev" --cache=writeback --discard=unmap --detect-zeroes=unmap \
+		${format:+--format=$format} "$image" \
+		&& echo "$nbd_dev"
+}
+
+# Prints path of available nbdX device, or returns 1 if not any.
+get_available_nbd() {
+	local dev; for dev in $(find /dev -maxdepth 2 -name 'nbd[0-9]*'); do
+		if [ "$(blockdev --getsize64 "$dev")" -eq 0 ]; then
+			echo "$dev"; return 0
+		fi
+	done
+	return 1
+}
+
+# Installs tools in the host system needed for creating the specified filesystem.
+install_fs_tools() {
+	local fs="$1"  # filesystem name
+
+	# We need load btrfs module early to avoid the error message:
+	# 'failed to open /dev/btrfs-control'
+	if ! grep -q -w "$fs" /proc/filesystems; then
+		modprobe $fs
+	fi
+
+	local pkg
+	case "$fs" in
+		ext4) pkg='e2fsprogs';;
+		btrfs) pkg='btrfs-progs';;
+		xfs) pkg='xfsprogs';;
+		*) die "Unsupported filesystem: $fs";;
+	esac
+
+	_apk add -t $VIRTUAL_PKG $pkg
+}
+
+# Binds the directory $1 at the mountpoint $2 and sets propagation to private.
+mount_bind() {
+	mkdir -p "$2"
+	mount --bind "$1" "$2"
+	mount --make-private "$2"
+}
+
+# Prepares chroot at the specified path.
+prepare_chroot() {
+	local dest="$1"
+
+	mkdir -p "$dest"/proc
+	mount -t proc none "$dest"/proc
+	mount_bind /dev "$dest"/dev
+	mount_bind /sys "$dest"/sys
+
+	install -D -m 644 /etc/resolv.conf "$dest"/etc/resolv.conf
+}
+
+# Unmounts all filesystem under the specified directory tree.
+umount_recursively() {
+	local mount_point="$1"
+	test -n "$mount_point" || return 1
+
+	cat /proc/mounts \
+		| cut -d ' ' -f 2 \
+		| grep "^$mount_point" \
+		| sort -r \
+		| xargs umount -rn
+}
+
+# Downloads the specified file using wget and checks checksum.
+wgets() (
+	local url="$1"
+	local sha256="$2"
+	local dest="${3:-.}"
+
+	cd "$dest" \
+		&& wget -T 10 --no-verbose "$url" \
+		&& echo "$sha256  ${url##*/}" | sha256sum -c
+)
+
+
+#=============================  M a i n  ==============================#
+
+opts=$(getopt -n $PROGNAME -o cChvf: \
+	-l no-cleanup,virtueimage:,script-chroot,help,version,image-format: \
+	-- "$@") || help 1 >&2
+
+eval set -- "$opts"
+while [ $# -gt 0 ]; do
+	n=2
+	case "$1" in
+		-f | --image-fomrat) IMAGE_FORMAT="$2";;
+		-C | --no-cleanup) CLEANUP='no'; n=1;;
+		     --virtueimage) VIRTUEIMAGE="$(realpath "$2")";;
+		-c | --script-chroot) SCRIPT_CHROOT='yes'; n=1;;
+		-h | --help) help 0;;
+		-V | --version) echo "$PROGNAME $VERSION"; exit 0;;
+		--) shift; break;;
+	esac
+	shift $n
+done
+
+: ${CLEANUP:="yes"}
+: ${SCRIPT_CHROOT:="no"}
+: ${IMAGE_FORMAT:="qcow2"}
+: ${VIRTUEIMAGE:="/tmp/virtueimages/xterm.tar"}
+
+[ $# -ne 0 ] || help 1 >&2
+
+IMAGE_FILE="$1"; shift
+SCRIPT=
+[ $# -eq 0 ] || { SCRIPT=$(realpath "$1"); shift; }
+
+[ "$CLEANUP" = no ] || trap cleanup EXIT HUP INT TERM
+
+#-----------------------------------------------------------------------
+einfo "Attaching image $IMAGE_FILE as a NBD device"
+
+nbd_dev=$(attach_image "$IMAGE_FILE" "$IMAGE_FORMAT")
+
+#-----------------------------------------------------------------------
+
+mount_dir=$(mktemp -d /tmp/$PROGNAME.XXXXXX)
+
+#-----------------------------------------------------------------------
+einfo "Mounting image at $mount_dir"
+
+mount "$nbd_dev" "$mount_dir"
+
+#-----------------------------------------------------------------------
+einfo "extra stuff"
+
+cd "$mount_dir"
+prepare_chroot .
+
+#-----------------------------------------------------------------------
+#VIRTUEIMAGE="/tmp/virtueimages/xterm.tar"
+einfo "Copying virtue image ${VIRTUEIMAGE} to ${mount_dir}/virtueimage.tar"
+cp "${VIRTUEIMAGE}" "${mount_dir}/virtueimage.tar"
+
+#-----------------------------------------------------------------------
+if [ "$SCRIPT" ]; then
+	script_name="${SCRIPT##*/}"
+
+	if [ "$SCRIPT_CHROOT" = 'no' ]; then
+		einfo "Executing script: $script_name $*"
+		"$SCRIPT" "$@" || die 'Script failed'
+	else
+		einfo "Executing script in chroot: $script_name $*"
+		mount_bind "${SCRIPT%/*}" mnt/
+		chroot . sh -c "cd /mnt && ./$script_name \"\$@\"" -- "$@" \
+			|| die 'Script failed'
+	fi
+fi
+
+#-----------------------------------------------------------------------
+einfo 'Completed'
+
+cd - >/dev/null
+ls -lh "$IMAGE_FILE"
